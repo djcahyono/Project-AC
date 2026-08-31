@@ -1,7 +1,7 @@
-## Project AC
+# Project AC
 
-# DATA:
+## DATA:
 Kelas, suhu dinding, jumlah AC, merk AC, jumlah remot, merk remot
 
-# TO-DO LIST:
+## TO-DO LIST:
 Grafik data, datanya sendiri
