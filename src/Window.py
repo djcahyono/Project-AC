@@ -19,24 +19,60 @@ class ACStatFullScreenApp:
         # edit coords (x1, y1, x2, y2) or add new floors here
         self.floors_data = {
             "Floor 1": [
-                # Left Wing
-                {"name": "XII H", "coords": (70, 50, 200, 150), "temp": 72, "status": "Cooling", "ac_power": "ON", "color": "#00ADB5"},
-                {"name": "XII I", "coords": (70, 160, 200, 260), "temp": 68, "status": "Idle", "ac_power": "ON", "color": "#00ADB5"},
-                # Bottom Wing 
-                {"name": "XI G",  "coords": (250, 310, 390, 410), "temp": 76, "status": "Warning (High)", "ac_power": "ON", "color": "#FF5722"},
-                {"name": "XI A",  "coords": (420, 310, 560, 410), "temp": 71, "status": "Eco Mode", "ac_power": "ON", "color": "#00ADB5"},
-                # Right Wing
-                {"name": "XI B",  "coords": (600, 50, 690, 150), "temp": 0, "status": "Powered Off", "ac_power": "OFF", "color": "#555555"},
-                {"name": "XI C",  "coords": (600, 160, 690, 260), "temp": 69, "status": "Cooling", "ac_power": "ON", "color": "#00ADB5"},
+                # === SAYAP KIRI (Dari Atas ke Bawah) ===
+                {"name": "XII G", "coords": (100, 100, 200, 180), "temp": 72, "status": "Cooling", "ac_power": "ON", "color": "#00ADB5"},
+                {"name": "XII F", "coords": (100, 200, 200, 280), "temp": 70, "status": "Cooling", "ac_power": "ON", "color": "#00ADB5"},
+                {"name": "R. Data", "coords": (100, 300, 200, 380), "temp": 74, "status": "Cooling", "ac_power": "ON", "color": "#00ADB5"},
+                
+                # === SAYAP BAWAH (Dari Kiri ke Kanan) ===
+                {"name": "XII E", "coords": (250, 400, 330, 480), "temp": 71, "status": "Cooling", "ac_power": "ON", "color": "#00ADB5"},
+                {"name": "XII D", "coords": (350, 400, 430, 480), "temp": 73, "status": "Cooling", "ac_power": "ON", "color": "#00ADB5"},
+                {"name": "XII C", "coords": (450, 400, 530, 480), "temp": 75, "status": "Eco", "ac_power": "ON", "color": "#FF5722"},
+                {"name": "XII B", "coords": (550, 400, 630, 480), "temp": 72, "status": "Cooling", "ac_power": "ON", "color": "#00ADB5"},
+                {"name": "XII A", "coords": (650, 400, 730, 480), "temp": 70, "status": "Cooling", "ac_power": "ON", "color": "#00ADB5"},
+                
+                # === SAYAP KANAN (Dari Atas ke Bawah) ===
+                {"name": "R. Kepsek", "coords": (780, 100, 880, 180), "temp": 68, "status": "Cooling", "ac_power": "ON", "color": "#00ADB5"},
+                {"name": "R. TU", "coords": (780, 200, 880, 280), "temp": 72, "status": "Cooling", "ac_power": "ON", "color": "#00ADB5"},
             ],
             "Floor 2": [
-                # Placeholder layout for Floor 2 to demonstrate animation
-                {"name": "Lab 1", "coords": (150, 100, 350, 200), "temp": 70, "status": "Cooling", "ac_power": "ON", "color": "#00ADB5"},
-                {"name": "Lab 2", "coords": (400, 100, 600, 200), "temp": 72, "status": "Cooling", "ac_power": "ON", "color": "#00ADB5"},
-                {"name": "Staff Room", "coords": (275, 250, 475, 350), "temp": 74, "status": "Eco", "ac_power": "ON", "color": "#FF5722"},
+                # === SAYAP KIRI (Dari Atas ke Bawah) ===
+                {"name": "XII H", "coords": (100, 100, 200, 180), "temp": 70, "status": "Cooling", "ac_power": "ON", "color": "#00ADB5"},
+                {"name": "XII I", "coords": (100, 200, 200, 280), "temp": 71, "status": "Cooling", "ac_power": "ON", "color": "#00ADB5"},
+                {"name": "XI G", "coords": (100, 300, 200, 380), "temp": 74, "status": "Eco", "ac_power": "ON", "color": "#FF5722"},
+                
+                # === SAYAP BAWAH (Dari Kiri ke Kanan) ===
+                {"name": "XI F", "coords": (250, 400, 330, 480), "temp": 72, "status": "Cooling", "ac_power": "ON", "color": "#00ADB5"},
+                {"name": "XI E", "coords": (350, 400, 430, 480), "temp": 73, "status": "Cooling", "ac_power": "ON", "color": "#00ADB5"},
+                {"name": "Guru 1", "coords": (450, 400, 530, 480), "temp": 69, "status": "Cooling", "ac_power": "ON", "color": "#00ADB5"},
+                {"name": "XI D", "coords": (550, 400, 630, 480), "temp": 75, "status": "Warning", "ac_power": "ON", "color": "#FF5722"},
+                {"name": "Guru 2", "coords": (650, 400, 730, 480), "temp": 71, "status": "Cooling", "ac_power": "ON", "color": "#00ADB5"},
+                
+                # === SAYAP KANAN (Dari Atas ke Bawah) ===
+                {"name": "XI A", "coords": (780, 100, 880, 180), "temp": 70, "status": "Cooling", "ac_power": "ON", "color": "#00ADB5"},
+                {"name": "XI B", "coords": (780, 200, 880, 280), "temp": 72, "status": "Cooling", "ac_power": "ON", "color": "#00ADB5"},
+                {"name": "XI C", "coords": (780, 300, 880, 380), "temp": 74, "status": "Eco", "ac_power": "ON", "color": "#FF5722"},
+            ],
+            "Floor 3": [
+                # === SAYAP KIRI (Dari Atas ke Bawah) ===
+                {"name": "XI H", "coords": (100, 100, 200, 180), "temp": 70, "status": "Cooling", "ac_power": "ON", "color": "#00ADB5"},
+                {"name": "XI I", "coords": (100, 200, 200, 280), "temp": 71, "status": "Cooling", "ac_power": "ON", "color": "#00ADB5"},
+                {"name": "X A", "coords": (100, 300, 200, 380), "temp": 73, "status": "Cooling", "ac_power": "ON", "color": "#00ADB5"},
+                
+                # === SAYAP BAWAH (Dari Kiri ke Kanan - Lebih rapat karena ada 6 ruang) ===
+                {"name": "X B", "coords": (210, 400, 290, 480), "temp": 72, "status": "Cooling", "ac_power": "ON", "color": "#00ADB5"},
+                {"name": "X C", "coords": (300, 400, 380, 480), "temp": 71, "status": "Cooling", "ac_power": "ON", "color": "#00ADB5"},
+                {"name": "X D", "coords": (390, 400, 470, 480), "temp": 74, "status": "Eco", "ac_power": "ON", "color": "#FF5722"},
+                {"name": "X E", "coords": (480, 400, 560, 480), "temp": 70, "status": "Cooling", "ac_power": "ON", "color": "#00ADB5"},
+                {"name": "X F", "coords": (570, 400, 650, 480), "temp": 73, "status": "Cooling", "ac_power": "ON", "color": "#00ADB5"},
+                {"name": "R. Heru", "coords": (660, 400, 740, 480), "temp": 68, "status": "Cooling", "ac_power": "ON", "color": "#00ADB5"},
+                
+                # === SAYAP KANAN (Dari Atas ke Bawah) ===
+                {"name": "X I", "coords": (780, 100, 880, 180), "temp": 70, "status": "Cooling", "ac_power": "ON", "color": "#00ADB5"},
+                {"name": "X H", "coords": (780, 200, 880, 280), "temp": 72, "status": "Cooling", "ac_power": "ON", "color": "#00ADB5"},
+                {"name": "X G", "coords": (780, 300, 880, 380), "temp": 74, "status": "Cooling", "ac_power": "ON", "color": "#00ADB5"},
             ]
         }
-
         # Theme Color Palette
         self.themes = {
             "dark": {
