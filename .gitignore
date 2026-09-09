@@ -1,1 +1,11 @@
-.venv
+# Virtual environments
+.venv/
+venv/
+
+# Python cache folders anywhere in the project
+**/__pycache__/
+*.py[cod]
+
+# VS Code Code Runner temporary files
+*.tempCodeRunnerFile
+tempCodeRunnerFile*

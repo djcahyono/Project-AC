@@ -1,5 +1,13 @@
 import tkinter as tk
 from animation import CanvasAnimationManager
+try:
+    from dataAndExec.data import RoomDataProvider
+except ModuleNotFoundError:
+    import sys
+    from pathlib import Path
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from dataAndExec.data import RoomDataProvider
 
 class ACStatFullScreenApp:
     def __init__(self, root):
@@ -8,66 +16,52 @@ class ACStatFullScreenApp:
         # State Variables
         self.is_dark = True
         self.current_floor = "Floor 1"
-        self.selected_room = None
-
-        # Fullscreen Defaults
-        self.root.attributes("-fullscreen", True)
-        self.root.bind("<Escape>", lambda e: self.exit_fullscreen())
-        self.root.bind("<F11>", lambda e: self.toggle_fullscreen())
-
-        # Floor Map Datasets
-        self.floors_data = {
+        # x1 y1 x2 y2 coordinated
+        floor_layout = {
             "Floor 1": [
-                {"name": "XII G", "coords": (100, 100, 200, 180), "temp": 72, "status": "Cooling", "ac_power": "ON", "color": "#00ADB5"},
-                {"name": "XII F", "coords": (100, 200, 200, 280), "temp": 70, "status": "Cooling", "ac_power": "ON", "color": "#00ADB5"},
-                {"name": "R. Data", "coords": (100, 300, 200, 380), "temp": 74, "status": "Cooling", "ac_power": "ON", "color": "#00ADB5"},
-                {"name": "XII E", "coords": (250, 400, 330, 480), "temp": 71, "status": "Cooling", "ac_power": "ON", "color": "#00ADB5"},
-                {"name": "XII D", "coords": (350, 400, 430, 480), "temp": 73, "status": "Cooling", "ac_power": "ON", "color": "#00ADB5"},
-                {"name": "XII C", "coords": (450, 400, 530, 480), "temp": 75, "status": "Eco", "ac_power": "ON", "color": "#FF5722"},
-                {"name": "XII B", "coords": (550, 400, 630, 480), "temp": 72, "status": "Cooling", "ac_power": "ON", "color": "#00ADB5"},
-                {"name": "XII A", "coords": (650, 400, 730, 480), "temp": 70, "status": "Cooling", "ac_power": "ON", "color": "#00ADB5"},
-                {"name": "R. Kepsek", "coords": (780, 100, 880, 180), "temp": 68, "status": "Cooling", "ac_power": "ON", "color": "#00ADB5"},
-                {"name": "R. TU", "coords": (780, 200, 880, 280), "temp": 72, "status": "Cooling", "ac_power": "ON", "color": "#00ADB5"},
+                {"name": "XII G", "coords": (75, 50, 175, 130)},
+                {"name": "XII F", "coords": (75, 150, 175, 230)},
+                {"name": "R. Data", "coords": (75, 250, 175, 330)},
+                {"name": "XII E", "coords": (175, 350, 275, 430)},
+                {"name": "XII D", "coords": (295, 350, 395, 430)},
+                {"name": "XII C", "coords": (415, 350, 515, 430)},
+                {"name": "XII B", "coords": (535, 350, 635, 430)},
+                {"name": "XII A", "coords": (655, 350, 755, 430)},
+                {"name": "R. Kepsek", "coords": (755, 90, 855, 190)},
+                {"name": "R. TU", "coords": (755, 200, 855, 330)},
             ],
             "Floor 2": [
-                {"name": "XII H", "coords": (100, 100, 200, 180), "temp": 70, "status": "Cooling", "ac_power": "ON", "color": "#00ADB5"},
-                {"name": "XII I", "coords": (100, 200, 200, 280), "temp": 71, "status": "Cooling", "ac_power": "ON", "color": "#00ADB5"},
-                {"name": "XI G", "coords": (100, 300, 200, 380), "temp": 74, "status": "Eco", "ac_power": "ON", "color": "#FF5722"},
-                {"name": "XI F", "coords": (250, 400, 330, 480), "temp": 72, "status": "Cooling", "ac_power": "ON", "color": "#00ADB5"},
-                {"name": "XI E", "coords": (350, 400, 430, 480), "temp": 73, "status": "Cooling", "ac_power": "ON", "color": "#00ADB5"},
-                {"name": "Guru 1", "coords": (450, 400, 530, 480), "temp": 69, "status": "Cooling", "ac_power": "ON", "color": "#00ADB5"},
-                {"name": "XI D", "coords": (550, 400, 630, 480), "temp": 75, "status": "Warning", "ac_power": "ON", "color": "#FF5722"},
-                {"name": "Guru 2", "coords": (650, 400, 730, 480), "temp": 71, "status": "Cooling", "ac_power": "ON", "color": "#00ADB5"},
-                {"name": "XI A", "coords": (780, 100, 880, 180), "temp": 70, "status": "Cooling", "ac_power": "ON", "color": "#00ADB5"},
-                {"name": "XI B", "coords": (780, 200, 880, 280), "temp": 72, "status": "Cooling", "ac_power": "ON", "color": "#00ADB5"},
-                {"name": "XI C", "coords": (780, 300, 880, 380), "temp": 74, "status": "Eco", "ac_power": "ON", "color": "#FF5722"},
+                {"name": "XII H", "coords": (75, 50, 175, 130)},
+                {"name": "XII I", "coords": (75, 150, 175, 230)},
+                {"name": "XI G", "coords": (75, 250, 175, 330)},
+                {"name": "XI F", "coords": (175, 350, 275, 430)},
+                {"name": "XI E", "coords": (295, 350, 395, 430)},
+                {"name": "Ruang guru", "coords": (415, 350, 635, 430)},
+                {"name": "XI D", "coords": (655, 350, 755, 430)},
+                {"name": "XI A", "coords": (780, 50, 880, 130)},
+                {"name": "XI B", "coords": (780, 150, 880, 230)},
+                {"name": "XI C", "coords": (780, 250, 880, 330)},
             ],
             "Floor 3": [
-                {"name": "XI H", "coords": (100, 100, 200, 180), "temp": 70, "status": "Cooling", "ac_power": "ON", "color": "#00ADB5"},
-                {"name": "XI I", "coords": (100, 200, 200, 280), "temp": 71, "status": "Cooling", "ac_power": "ON", "color": "#00ADB5"},
-                {"name": "X A", "coords": (100, 300, 200, 380), "temp": 73, "status": "Cooling", "ac_power": "ON", "color": "#00ADB5"},
-                {"name": "X B", "coords": (210, 400, 290, 480), "temp": 72, "status": "Cooling", "ac_power": "ON", "color": "#00ADB5"},
-                {"name": "X C", "coords": (300, 400, 380, 480), "temp": 71, "status": "Cooling", "ac_power": "ON", "color": "#00ADB5"},
-                {"name": "X D", "coords": (390, 400, 470, 480), "temp": 74, "status": "Eco", "ac_power": "ON", "color": "#FF5722"},
-                {"name": "X E", "coords": (480, 400, 560, 480), "temp": 70, "status": "Cooling", "ac_power": "ON", "color": "#00ADB5"},
-                {"name": "X F", "coords": (570, 400, 650, 480), "temp": 73, "status": "Cooling", "ac_power": "ON", "color": "#00ADB5"},
-                {"name": "R. Heru", "coords": (660, 400, 740, 480), "temp": 68, "status": "Cooling", "ac_power": "OFF", "color": "#00ADB5", "has_stats": False},
-                {"name": "X I", "coords": (780, 100, 880, 180), "temp": 70, "status": "Cooling", "ac_power": "ON", "color": "#00ADB5"},
-                {"name": "X H", "coords": (780, 200, 880, 280), "temp": 72, "status": "Cooling", "ac_power": "ON", "color": "#00ADB5"},
-                {"name": "X G", "coords": (780, 300, 880, 380), "temp": 74, "status": "Cooling", "ac_power": "ON", "color": "#00ADB5"},
+                {"name": "XI H", "coords": (75, 50, 175, 130)},
+                {"name": "XI I", "coords": (75, 150, 175, 230)},
+                {"name": "X A", "coords": (75, 250, 175, 330)},
+                {"name": "X B", "coords": (175, 350, 275, 430)},
+                {"name": "X C", "coords": (295, 350, 395, 430)},
+                {"name": "X D", "coords": (415, 350, 515, 430)},
+                {"name": "X E", "coords": (535, 350, 635, 430)},
+                {"name": "X F", "coords": (655, 350, 755, 430)},
+                {"name": "R. Heru", "coords": (780, 350, 850, 430)},
+                {"name": "X I", "coords": (780, 50, 880, 130)},
+                {"name": "X H", "coords": (780, 150, 880, 230)},
+                {"name": "X G", "coords": (780, 250, 880, 330)},
+            ],
+            "Floor 4": [
+                {"name": "coming soon", "coords": (30, 30, 920 ,480)}
             ]
         }
-
-        ac_number = 1
-        for floor_rooms in self.floors_data.values():
-            for room in floor_rooms:
-                room.update({
-                    "ac_id": f"AC-{ac_number:02d}",
-                    "ac_ids": [f"AC-{ac_number:02d}A", f"AC-{ac_number:02d}B"],
-                    "ac_model": "Daikin Inverter",
-                    "ac_condition": "Needs service" if room["status"] == "Warning" else "Good",
-                })
-                ac_number += 1
+        self.data_provider = RoomDataProvider()
+        self.floors_data = self.data_provider.get_floors_data(floor_layout)
 
         # Theme Configuration
         self.themes = {
@@ -108,23 +102,6 @@ class ACStatFullScreenApp:
 
         self.app_title = tk.Label(self.left_box, text="AC STAT", font=("Segoe UI", 18, "bold"))
         self.app_title.pack(side="left", padx=(0, 15))
-
-        self.status_badge = tk.Label(self.left_box, text="● SYSTEM ONLINE", font=("Segoe UI", 9, "bold"), fg="#00E676")
-        self.status_badge.pack(side="left")
-
-        # Center Metrics
-        self.center_box = tk.Frame(self.top_bar)
-        self.center_box.pack(side="left", expand=True)
-
-        self.stat1_val = tk.Label(self.center_box, text="71°F", font=("Segoe UI", 13, "bold"))
-        self.stat1_val.pack(side="left")
-        self.stat1_lbl = tk.Label(self.center_box, text=" Avg Temp  |  ", font=("Segoe UI", 10))
-        self.stat1_lbl.pack(side="left")
-
-        self.stat2_val = tk.Label(self.center_box, text="6 / 7", font=("Segoe UI", 13, "bold"))
-        self.stat2_val.pack(side="left")
-        self.stat2_lbl = tk.Label(self.center_box, text=" Active Zones", font=("Segoe UI", 10))
-        self.stat2_lbl.pack(side="left")
 
         # Right Controls
         self.right_box = tk.Frame(self.top_bar)
@@ -168,12 +145,15 @@ class ACStatFullScreenApp:
         self.btn_floor3 = tk.Button(self.floor_tabs_frame, text="Floor 3", font=("Segoe UI", 10, "bold"), bd=0, padx=15, pady=5, cursor="hand2", command=lambda: self.change_floor("Floor 3"))
         self.btn_floor3.pack(side="left")
 
+        self.btn_floor4 = tk.Button(self.floor_tabs_frame, text="Floor 4", font=("Segoe UI", 10, "bold"), bd=0, padx=15, pady=5, cursor="hand2", command=lambda: self.change_floor("Floor 4"))
+        self.btn_floor4.pack(side="left", padx=(10, 0))
+
         # Map Canvas
         self.canvas = tk.Canvas(self.map_area, highlightthickness=1)
         self.canvas.pack(fill="both", expand=True)
 
         # Preview Side Panel
-        self.preview_card = tk.Frame(self.workspace, width=280, highlightthickness=1)
+        self.preview_card = tk.Frame(self.workspace, width=260, highlightthickness=1)
         self.preview_card.pack_propagate(False)
         self.preview_card.pack(side="right", fill="y")
 
@@ -188,9 +168,9 @@ class ACStatFullScreenApp:
         self.footer.pack(side="bottom", anchor="w", padx=25, pady=8)
 
     def setup_dashboard_card(self):
-        self.dashboard_title = tk.Label(self.preview_card, text="BUILDING DASHBOARD", font=("Segoe UI", 10, "bold"))
+        self.dashboard_title = tk.Label(self.preview_card, text="", font=("Segoe UI", 10, "bold"))
         self.dashboard_title.pack(anchor="w", padx=20, pady=(20, 5))
-        self.dashboard_floor = tk.Label(self.preview_card, font=("Segoe UI", 13, "bold"))
+        self.dashboard_floor = tk.Label(self.preview_card, text="", font=("Segoe UI", 13, "bold"))
         self.dashboard_floor.pack(anchor="w", padx=20, pady=(0, 8))
         self.dashboard_canvas = tk.Canvas(self.preview_card, width=280, height=560, highlightthickness=0)
         self.dashboard_canvas.pack(fill="both", expand=True, padx=5, pady=5)
@@ -203,7 +183,7 @@ class ACStatFullScreenApp:
             hover_callback=self.on_room_hover,
             click_callback=self.on_room_click
         )
-
+    #change floor animation
     def change_floor(self, target_floor):
         if self.animator.is_animating:
             return
@@ -213,8 +193,9 @@ class ACStatFullScreenApp:
             return
 
         if self.current_floor == target_floor:
-            return
 
+            return
+        
         self._change_floor_after_room(target_floor)
 
     def _change_floor_after_room(self, target_floor):
@@ -234,21 +215,21 @@ class ACStatFullScreenApp:
             click_cb=self.on_room_click,
             on_complete=self.update_dashboard
         )
-
+    #room hover effect
     def on_room_hover(self, room_data, entering):
         self.animator.hover_zoom(room_data, entering)
         if entering:
             self.update_preview(room_data)
         else:
             self.clear_preview()
-
+    #room click effect
     def on_room_click(self, room_data):
         self.selected_room = room_data
         self.animator.zoom_into_room(room_data, on_complete_callback=self.open_room_menu)
 
     def open_room_menu(self, room_data):
         self.animator.draw_room_menu_overlay(room_data, back_callback=self.return_to_current_floor)
-
+    #room menu back button
     def return_to_current_floor(self):
         if self.animator.is_animating:
             return
@@ -261,33 +242,8 @@ class ACStatFullScreenApp:
         self.update_dashboard()
 
     def update_dashboard(self):
-        all_rooms = [room for floor in self.floors_data.values() for room in floor if room.get("has_stats", True)]
-        rooms = [room for room in self.floors_data[self.current_floor] if room.get("has_stats", True)]
-        temperatures = [room["temp"] for room in rooms]
-        active_count = sum(room["ac_power"] == "ON" for room in all_rooms)
-        average_temp = round(sum(temperatures) / len(temperatures)) if temperatures else 0
-        condition_counts = {"Good": 0, "Needs service": 0}
-        for room in all_rooms:
-            condition_counts[room["ac_condition"]] = condition_counts.get(room["ac_condition"], 0) + 1
-
-        self.stat1_val.config(text=f"{average_temp} F")
-        self.stat2_val.config(text=f"{active_count} / {len(all_rooms)}")
-        self.dashboard_floor.config(text=self.current_floor)
         self.dashboard_canvas.delete("all")
-        t = self.get_current_theme()
-        self.dashboard_canvas.create_text(20, 24, anchor="w", text="TEMPERATURE", fill=t["muted"], font=("Segoe UI", 10, "bold"))
-        max_temp = max(temperatures) if temperatures else 1
-        for index, room in enumerate(rooms):
-            y = 55 + index * 22
-            bar_width = 170 * room["temp"] / max_temp
-            self.dashboard_canvas.create_text(20, y, anchor="w", text=room["name"], fill=t["text"], font=("Segoe UI", 9))
-            self.dashboard_canvas.create_rectangle(85, y - 6, 85 + bar_width, y + 6, fill=room["color"], outline="")
-            self.dashboard_canvas.create_text(270, y, anchor="e", text=f"{room['temp']} F", fill=t["text"], font=("Segoe UI", 9, "bold"))
-        status_y = 55 + len(rooms) * 22 + 18
-        self.dashboard_canvas.create_text(20, status_y, anchor="w", text="AC CONDITION", fill=t["muted"], font=("Segoe UI", 10, "bold"))
-        self.dashboard_canvas.create_text(20, status_y + 30, anchor="w", text=f"Good units       {condition_counts.get('Good', 0)}", fill="#00E676", font=("Segoe UI", 10, "bold"))
-        self.dashboard_canvas.create_text(20, status_y + 58, anchor="w", text=f"Needs service    {condition_counts.get('Needs service', 0)}", fill="#FFB020", font=("Segoe UI", 10, "bold"))
-
+    #Theme application (would add more later)
     def apply_theme(self):
         t = self.get_current_theme()
 
@@ -299,19 +255,13 @@ class ACStatFullScreenApp:
         
         self.top_bar.configure(bg=t["top_bg"], highlightbackground=t["border"])
         self.left_box.configure(bg=t["top_bg"])
-        self.center_box.configure(bg=t["top_bg"])
         self.right_box.configure(bg=t["top_bg"])
 
         self.canvas.configure(bg=t["canvas_bg"], highlightbackground=t["border"])
         self.preview_card.configure(bg=t["card_bg"], highlightbackground=t["border"])
 
         self.app_title.configure(bg=t["top_bg"], fg=t["accent"])
-        self.status_badge.configure(bg=t["top_bg"])
         self.footer.configure(bg=t["bg"], fg=t["muted"])
-
-        for val, lbl in [(self.stat1_val, self.stat1_lbl), (self.stat2_val, self.stat2_lbl)]:
-            val.configure(bg=t["top_bg"], fg=t["text"])
-            lbl.configure(bg=t["top_bg"], fg=t["muted"])
 
         self.dashboard_title.configure(bg=t["card_bg"], fg=t["muted"])
         self.dashboard_floor.configure(bg=t["card_bg"], fg=t["text"])
@@ -331,14 +281,15 @@ class ACStatFullScreenApp:
         self.update_dashboard()
 
     def update_floor_selection(self):
-        """Give the active floor a clear visual state."""
+        # Gives the active floor a clear visual state.
         t = self.get_current_theme()
         floor_buttons = {
             "Floor 1": self.btn_floor1,
             "Floor 2": self.btn_floor2,
             "Floor 3": self.btn_floor3,
+            "Floor 4" : self.btn_floor4 if hasattr(self, 'btn_floor4') else None
         }
-
+    #change floor thing
         for floor_name, button in floor_buttons.items():
             is_selected = floor_name == self.current_floor
             button.configure(
@@ -348,7 +299,7 @@ class ACStatFullScreenApp:
                 highlightthickness=1 if is_selected else 0,
                 highlightbackground=t["accent"] if is_selected else t["btn_bg"],
             )
-
+    # toggleables
     def toggle_theme(self):
         self.is_dark = not self.is_dark
         self.apply_theme()
