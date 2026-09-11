@@ -2,13 +2,13 @@
 ROOM_DATA = {
     "XII G": {"temp": 72, "status": "Cooling", "ac_power": "ON"},
     "XII F": {"temp": 70, "status": "Cooling", "ac_power": "ON"},
-    "R. Data": {"temp": 74, "status": "Cooling", "ac_power": "ON", "has_stats": False},
+    "R. Data": {"temp": None, "status": None, "ac_power": None, "has_stats": False},
     "XII E": {"temp": 71, "status": "Cooling", "ac_power": "ON"},
     "XII D": {"temp": 73, "status": "Cooling", "ac_power": "ON"},
     "XII C": {"temp": 75, "status": "Eco", "ac_power": "ON"},
     "XII B": {"temp": 72, "status": "Cooling", "ac_power": "ON"},
     "XII A": {"temp": 70, "status": "Cooling", "ac_power": "ON"},
-    "R. Kepsek": {"temp": 68, "status": "Cooling", "ac_power": "ON", "has_stats": False},
+    "R. Kepsek": {"temp": None, "status": None, "ac_power": None, "has_stats": False},
     "R. TU": {"temp": 72, "status": "Cooling", "ac_power": "ON", "has_stats": False},
     "XII H": {"temp": 70, "status": "Cooling", "ac_power": "ON"},
     "XII I": {"temp": 71, "status": "Cooling", "ac_power": "ON"},
@@ -37,10 +37,7 @@ ROOM_DATA = {
 
 
 class RoomDataProvider:
-    """Database boundary for room data.
-
-    Replace ROOM_DATA with database reads when persistence is added.
-    """
+#database stuff
 
     def __init__(self, room_data=None):
         self._room_data = room_data if room_data is not None else ROOM_DATA

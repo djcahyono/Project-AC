@@ -8,7 +8,7 @@ except ModuleNotFoundError:
 
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
     from dataAndExec.data import RoomDataProvider
-
+from adminPanelUi import AdminPanelUI
 class ACStatFullScreenApp:
     def __init__(self, root):
         self.root = root
@@ -243,6 +243,25 @@ class ACStatFullScreenApp:
 
     def update_dashboard(self):
         self.dashboard_canvas.delete("all")
+
+    def drawArrow(self, canvas, x1, y1, x2, y2, arrow_Angle, color, width=2):
+        #angles
+        x3 = x2 - arrow_length * math.cos(angle - arrow_Angle)
+        y3 = y2 - arrow_length * math.sin(angle - arrow_Angle)
+        x4 = x2 - arrow_length * math.cos(angle + arrow_Angle)
+        y4 = y2 - arrow_length * math.sin(angle + arrow_Angle)
+
+        canvas.createSquareLine(x1, y1, x2, y2, color=color, width=width)
+        # Calculate the angle of the line
+        import math
+        angle = math.atan2(y2 - y1, x2 - x1)
+        # Length of the arrowhead lines
+        arrow_length = 10
+        # Calculate the points for the arrowhead
+
+
+        # Draw the arrowhead
+        canvas.create_polygon(x2, y2, x3, y3, x4, y4, fill=color)
     #Theme application (would add more later)
     def apply_theme(self):
         t = self.get_current_theme()
