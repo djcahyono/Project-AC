@@ -40,7 +40,8 @@ InitialRoomData = {
     "R. Data": {"temp": None, "jumlahAc": None, "merkAc": None, "remoteCount": None, "remoteBrand": None, "hasStats": False},
     "R. Kepsek": {"temp": None, "jumlahAc": None, "merkAc": None, "remoteCount": None, "remoteBrand": None, "hasStats": False},
     "R. TU": {"temp": None, "jumlahAc": None, "merkAc": None, "remoteCount": None, "remoteBrand": None, "hasStats": False},
-    "Ruang Guru": {"temp": None, "jumlahAc": None, "merkAc": None, "remoteCount": None, "remoteBrand": None, "hasStats": False}
+    "Ruang Guru": {"temp": None, "jumlahAc": None, "merkAc": None, "remoteCount": None, "remoteBrand": None, "hasStats": False},
+    "coming soon": {"temp": None, "jumlahAc": None, "merkAc": None, "remoteCount": None, "remoteBrand": None, "hasStats": False}
 }
 
 databasePath = Path(__file__).resolve().parents[2] / "facilityData.db"

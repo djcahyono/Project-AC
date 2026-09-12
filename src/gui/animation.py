@@ -1,5 +1,16 @@
+import sys
 import tkinter as tk
-from roomDesign import RoomDesigner
+from pathlib import Path
+
+src_dir = Path(__file__).resolve().parents[1]
+for candidate in (str(src_dir), str(src_dir.parent)):
+    if candidate not in sys.path:
+        sys.path.insert(0, candidate)
+
+try:
+    from gui.roomDesign import RoomDesigner
+except ModuleNotFoundError:
+    from src.gui.roomDesign import RoomDesigner
 
 class CanvasAnimationManager:
     #Handles canvas rendering, room hovering, zoom-to-menu transitions, and slide animations.

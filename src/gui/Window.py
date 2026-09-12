@@ -1,17 +1,33 @@
+import sys
 import tkinter as tk
+from pathlib import Path
 
-from animation import CanvasAnimationManager
+src_dir = Path(__file__).resolve().parents[1]
+project_root = src_dir.parent
+for candidate in (str(src_dir), str(project_root)):
+    if candidate not in sys.path:
+        sys.path.insert(0, candidate)
+
+try:
+    from gui.animation import CanvasAnimationManager
+except ModuleNotFoundError:
+    try:
+        from src.gui.animation import CanvasAnimationManager
+    except ModuleNotFoundError:
+        from animation import CanvasAnimationManager
+
+try:
+    from gui.adminPanelUi import AdminPanelUI
+except ModuleNotFoundError:
+    try:
+        from src.gui.adminPanelUi import AdminPanelUI
+    except ModuleNotFoundError:
+        from adminPanelUi import AdminPanelUI
 
 try:
     from dataAndExec.data import RoomDataProvider
 except ModuleNotFoundError:
-    import sys
-    from pathlib import Path
-
-    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-    from dataAndExec.data import RoomDataProvider
-
-from adminPanelUi import AdminPanelUI
+    from src.dataAndExec.data import RoomDataProvider
 
 class ACStatFullScreenApp:
     def __init__(self, root):
@@ -211,7 +227,7 @@ class ACStatFullScreenApp:
         target_floor_number = int(targetFloor.split()[-1])
         direction = "up" if target_floor_number > current_floor_number else "down"
         self.current_floor = targetFloor
-        self.update_floor_selection()
+        self.updateFloorSelection()
         self.animator.changeFloorSlide(
             self.floorsData[targetFloor], targetFloor,
             direction,
