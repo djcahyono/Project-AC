@@ -57,7 +57,7 @@ class ACStatFullScreenApp:
                 {"name": "XI G", "coords": (75, 250, 175, 330)},
                 {"name": "XI F", "coords": (175, 350, 275, 430)},
                 {"name": "XI E", "coords": (295, 350, 395, 430)},
-                {"name": "Ruang guru", "coords": (415, 350, 635, 430)},
+                {"name": "Ruang Guru", "coords": (415, 350, 635, 430)},
                 {"name": "XI D", "coords": (655, 350, 755, 430)},
                 {"name": "XI A", "coords": (780, 50, 880, 130)},
                 {"name": "XI B", "coords": (780, 150, 880, 230)},
@@ -228,6 +228,8 @@ class ACStatFullScreenApp:
         direction = "up" if target_floor_number > current_floor_number else "down"
         self.current_floor = targetFloor
         self.updateFloorSelection()
+        if hasattr(self, "dashboard_canvas"):
+            self.updateDashboard()
         self.animator.changeFloorSlide(
             self.floorsData[targetFloor], targetFloor,
             direction,
@@ -248,7 +250,127 @@ class ACStatFullScreenApp:
         self.animator.zoomIntoRoom(roomData, onCompleteCallback=self.openRoomMenu)
 
     def openRoomMenu(self, roomData):
-        self.animator.drawRoomMenuOverlay(roomData, backCallback=self.returnToCurrentFloor)
+        self.animator.drawRoomMenuOverlay(
+            roomData,
+            backCallback=self.returnToCurrentFloor,
+            editCallback=lambda: self.openEditAuthentication(roomData),
+        )
+
+    def openEditAuthentication(self, roomData):
+        dialog = tk.Toplevel(self.root)
+        dialog.title(f"Edit {roomData['name']}")
+        dialog.transient(self.root)
+        dialog.grab_set()
+        dialog.resizable(False, False)
+
+        tk.Label(
+            dialog, text=f"Enter password for {roomData['name']}",
+            font=("Segoe UI", 11, "bold")
+        ).pack(padx=24, pady=(20, 10))
+        password_entry = tk.Entry(dialog, show="*", width=28)
+        password_entry.pack(padx=24, pady=5)
+        password_entry.focus_set()
+        error_label = tk.Label(dialog, text="", fg="#D92323")
+        error_label.pack(padx=24, pady=(0, 8))
+
+        def authenticate():
+            if self.dataProvider.authenticateRoom(
+                roomData["name"], password_entry.get()
+            ):
+                dialog.destroy()
+                self.openRoomEditor(roomData)
+            else:
+                error_label.configure(text="Incorrect password")
+                password_entry.select_range(0, tk.END)
+                password_entry.focus_set()
+
+        tk.Button(
+            dialog, text="Continue", command=authenticate,
+            bg="#00ADB5", fg="#FFFFFF", bd=0, padx=16, pady=6,
+        ).pack(pady=(0, 20))
+        password_entry.bind("<Return>", lambda event: authenticate())
+
+    def openRoomEditor(self, roomData):
+        dialog = tk.Toplevel(self.root)
+        dialog.title(f"Update {roomData['name']}")
+        dialog.transient(self.root)
+        dialog.grab_set()
+        dialog.resizable(False, False)
+
+        fields = (
+            ("Temperature", "temp"),
+            ("AC count", "jumlahAc"),
+            ("AC brand", "merkAc"),
+            ("Remote count", "remoteCount"),
+            ("Remote brand", "remoteBrand"),
+        )
+        entries = {}
+        form = tk.Frame(dialog)
+        form.pack(padx=24, pady=18)
+        for row, (label, key) in enumerate(fields):
+            tk.Label(form, text=label, anchor="w", width=16).grid(
+                row=row, column=0, padx=(0, 10), pady=5
+            )
+            entry = tk.Entry(form, width=30)
+            entry.insert(0, "" if roomData.get(key) is None else str(roomData[key]))
+            entry.grid(row=row, column=1, pady=5)
+            entries[key] = entry
+
+        power_var = tk.StringVar(value=roomData.get("acPower") or "ON")
+        tk.Label(form, text="AC power", anchor="w", width=16).grid(
+            row=len(fields), column=0, padx=(0, 10), pady=5
+        )
+        tk.OptionMenu(form, power_var, "ON", "OFF").grid(
+            row=len(fields), column=1, sticky="w", pady=5
+        )
+        error_label = tk.Label(dialog, text="", fg="#D92323")
+        error_label.pack()
+
+        def save_changes():
+            try:
+                values = {
+                    "temperature": float(entries["temp"].get()),
+                    "acCount": int(entries["jumlahAc"].get()),
+                    "acBrand": entries["merkAc"].get(),
+                    "remoteCount": int(entries["remoteCount"].get()),
+                    "remoteBrand": entries["remoteBrand"].get(),
+                    "acPower": power_var.get(),
+                }
+                editor = self.dataProvider.getRoomEditor(roomData["name"])
+                editor.update(**values)
+            except (ValueError, PermissionError) as error:
+                error_label.configure(text=str(error) or "Enter valid values")
+                return
+
+            updated = self.dataProvider.getRoom(roomData["name"])
+            roomData.update({
+                "temp": updated["temperature"],
+                "acPower": updated["acPower"],
+                "jumlahAc": updated["acCount"],
+                "merkAc": updated["acBrand"],
+                "remoteCount": updated["remoteCount"],
+                "remoteBrand": updated["remoteBrand"],
+            })
+            for floor_rooms in self.floorsData.values():
+                for floor_room in floor_rooms:
+                    if floor_room["name"] == roomData["name"]:
+                        floor_room.update(roomData)
+            dialog.destroy()
+            self.updateDashboard()
+            self.animator.drawRoomMenuOverlay(
+                roomData,
+                backCallback=self.returnToCurrentFloor,
+                editCallback=lambda: self.openEditAuthentication(roomData),
+            )
+
+        tk.Button(
+            dialog, text="Save", command=save_changes,
+            bg="#00ADB5", fg="#FFFFFF", bd=0, padx=18, pady=6,
+        ).pack(side="left", padx=(24, 8), pady=(4, 20))
+        tk.Button(
+            dialog, text="Cancel", command=dialog.destroy,
+            bd=0, padx=18, pady=6,
+        ).pack(side="left", padx=(0, 24), pady=(4, 20))
     #room menu back button
     def returnToCurrentFloor(self):
         if self.animator.isAnimating:
@@ -264,32 +386,42 @@ class ACStatFullScreenApp:
     def updateDashboard(self):
         theme = self.get_current_theme()
         floor_data = self.floorsData.get(self.current_floor, [])
-        stats_rooms = [room for room in floor_data if room.get("hasStats", True)]
+        self.dashboard_floor.configure(text=self.current_floor)
+        self.dashboard_canvas.delete("all")
+
+        if self.current_floor == "Floor 4":
+            self.dashboard_canvas.create_text(
+                125, 125, text="Coming soon",
+                fill=theme["muted"], font=("Segoe UI", 16, "bold")
+            )
+            return
+
         status_counts = {"ON": 0, "OFF": 0, "NO DATA": 0}
         temperatures = []
         ac_count = 0
 
-        for room in stats_rooms:
+        for room in floor_data:
             temperature = room.get("temp")
-            if temperature is None:
-                status_counts["NO DATA"] += 1
-            else:
-                temperatures.append(temperature)
+            has_stats = room.get("hasStats", True)
+            power = str(room.get("acPower") or "").upper()
 
-            if room.get("acPower") == "OFF":
+            if not has_stats or power not in {"ON", "OFF"}:
+                status_counts["NO DATA"] += 1
+            elif power == "OFF":
                 status_counts["OFF"] += 1
-            elif temperature is not None:
+            else:
                 status_counts["ON"] += 1
 
-            ac_count += room.get("jumlahAc") or 0
+            if has_stats and temperature is not None:
+                temperatures.append(temperature)
+
+            if has_stats:
+                ac_count += room.get("jumlahAc") or 0
 
         average_temperature = (
             f"{sum(temperatures) / len(temperatures):.1f} C"
             if temperatures else "--"
         )
-        self.dashboard_floor.configure(text=self.current_floor)
-        self.dashboard_canvas.delete("all")
-
         canvas_width = max(self.dashboard_canvas.winfo_width(), 250)
         center_x = canvas_width / 2
         center_y = 125
