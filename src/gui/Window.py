@@ -1,13 +1,33 @@
+import sys
 import tkinter as tk
-from animation import CanvasAnimationManager
+from pathlib import Path
+
+src_dir = Path(__file__).resolve().parents[1]
+project_root = src_dir.parent
+for candidate in (str(src_dir), str(project_root)):
+    if candidate not in sys.path:
+        sys.path.insert(0, candidate)
+
+try:
+    from gui.animation import CanvasAnimationManager
+except ModuleNotFoundError:
+    try:
+        from src.gui.animation import CanvasAnimationManager
+    except ModuleNotFoundError:
+        from animation import CanvasAnimationManager
+
+try:
+    from gui.adminPanelUi import AdminPanelUI
+except ModuleNotFoundError:
+    try:
+        from src.gui.adminPanelUi import AdminPanelUI
+    except ModuleNotFoundError:
+        from adminPanelUi import AdminPanelUI
+
 try:
     from dataAndExec.data import RoomDataProvider
 except ModuleNotFoundError:
-    import sys
-    from pathlib import Path
-
-    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-    from dataAndExec.data import RoomDataProvider
+    from src.dataAndExec.data import RoomDataProvider
 
 class ACStatFullScreenApp:
     def __init__(self, root):
@@ -16,6 +36,7 @@ class ACStatFullScreenApp:
         # State Variables
         self.is_dark = True
         self.current_floor = "Floor 1"
+        self.selectedRoom = None
         # x1 y1 x2 y2 coordinated
         floor_layout = {
             "Floor 1": [
@@ -51,7 +72,6 @@ class ACStatFullScreenApp:
                 {"name": "X D", "coords": (415, 350, 515, 430)},
                 {"name": "X E", "coords": (535, 350, 635, 430)},
                 {"name": "X F", "coords": (655, 350, 755, 430)},
-                {"name": "R. Heru", "coords": (780, 350, 850, 430)},
                 {"name": "X I", "coords": (780, 50, 880, 130)},
                 {"name": "X H", "coords": (780, 150, 880, 230)},
                 {"name": "X G", "coords": (780, 250, 880, 330)},
@@ -60,15 +80,15 @@ class ACStatFullScreenApp:
                 {"name": "coming soon", "coords": (30, 30, 920 ,480)}
             ]
         }
-        self.data_provider = RoomDataProvider()
-        self.floors_data = self.data_provider.get_floors_data(floor_layout)
+        self.dataProvider = RoomDataProvider()
+        self.floorsData = self.dataProvider.getFloorsData(floor_layout)
 
         # Theme Configuration
         self.themes = {
             "dark": {
-                "bg": "#121212", "top_bg": "#1E1E1E", "card_bg": "#1E1E1E",
-                "canvas_bg": "#181818", "text": "#EEEEEE", "muted": "#888888",
-                "accent": "#00ADB5", "btn_bg": "#2A2A2A", "btn_fg": "#FFFFFF",
+                "bg": "#0d0d0d", "top_bg": "#1b1b1b", "card_bg": "#1E1E1E",
+                "canvas_bg": "#181818", "text": "#EEEEEE", "muted": "#32BEFF",
+                "accent": "#d92323", "btn_bg": "#732424", "btn_fg": "#FFFFFF",
                 "border": "#333333"
             },
             "light": {
@@ -81,7 +101,7 @@ class ACStatFullScreenApp:
 
         self.setup_ui()
         self.animator = CanvasAnimationManager(self.canvas, self.root, self.get_current_theme)
-        self.reload_floor_map()
+        self.reloadFloorMap()
         self.apply_theme()
 
     def get_current_theme(self):
@@ -136,16 +156,16 @@ class ACStatFullScreenApp:
         self.floor_tabs_frame = tk.Frame(self.map_area)
         self.floor_tabs_frame.pack(fill="x", pady=(0, 10))
 
-        self.btn_floor1 = tk.Button(self.floor_tabs_frame, text="Floor 1", font=("Segoe UI", 10, "bold"), bd=0, padx=15, pady=5, cursor="hand2", command=lambda: self.change_floor("Floor 1"))
+        self.btn_floor1 = tk.Button(self.floor_tabs_frame, text="Floor 1", font=("Segoe UI", 10, "bold"), bd=0, padx=15, pady=5, cursor="hand2", command=lambda: self.changeFloor("Floor 1"))
         self.btn_floor1.pack(side="left", padx=(0, 10))
 
-        self.btn_floor2 = tk.Button(self.floor_tabs_frame, text="Floor 2", font=("Segoe UI", 10, "bold"), bd=0, padx=15, pady=5, cursor="hand2", command=lambda: self.change_floor("Floor 2"))
+        self.btn_floor2 = tk.Button(self.floor_tabs_frame, text="Floor 2", font=("Segoe UI", 10, "bold"), bd=0, padx=15, pady=5, cursor="hand2", command=lambda: self.changeFloor("Floor 2"))
         self.btn_floor2.pack(side="left", padx=(0, 10))
 
-        self.btn_floor3 = tk.Button(self.floor_tabs_frame, text="Floor 3", font=("Segoe UI", 10, "bold"), bd=0, padx=15, pady=5, cursor="hand2", command=lambda: self.change_floor("Floor 3"))
+        self.btn_floor3 = tk.Button(self.floor_tabs_frame, text="Floor 3", font=("Segoe UI", 10, "bold"), bd=0, padx=15, pady=5, cursor="hand2", command=lambda: self.changeFloor("Floor 3"))
         self.btn_floor3.pack(side="left")
 
-        self.btn_floor4 = tk.Button(self.floor_tabs_frame, text="Floor 4", font=("Segoe UI", 10, "bold"), bd=0, padx=15, pady=5, cursor="hand2", command=lambda: self.change_floor("Floor 4"))
+        self.btn_floor4 = tk.Button(self.floor_tabs_frame, text="Floor 4", font=("Segoe UI", 10, "bold"), bd=0, padx=15, pady=5, cursor="hand2", command=lambda: self.changeFloor("Floor 4"))
         self.btn_floor4.pack(side="left", padx=(10, 0))
 
         # Map Canvas
@@ -175,74 +195,93 @@ class ACStatFullScreenApp:
         self.dashboard_canvas = tk.Canvas(self.preview_card, width=280, height=560, highlightthickness=0)
         self.dashboard_canvas.pack(fill="both", expand=True, padx=5, pady=5)
 
-    def reload_floor_map(self):
+    def reloadFloorMap(self):
         self.canvas.delete("all")
-        floor_data = self.floors_data[self.current_floor]
-        self.animator.draw_floor_items(
-            floor_data, self.current_floor,
-            hover_callback=self.on_room_hover,
-            click_callback=self.on_room_click
+        floorData = self.floorsData[self.current_floor]
+        self.animator.drawFloorItems(
+            floorData, self.current_floor,
+            hoverCallback=self.onRoomHover,
+            clickCallback=self.onRoomClick
         )
     #change floor animation
-    def change_floor(self, target_floor):
-        if self.animator.is_animating:
+    def changeFloor(self, targetFloor):
+        if self.animator.isAnimating:
             return
 
-        if self.animator.is_in_room_menu:
-            self.animator.zoom_out_room_view(lambda: self._change_floor_after_room(target_floor))
+        if self.animator.isInRoomMenu:
+            self.animator.zoomOutRoomView(lambda: self.changeFloorAfterRoom(targetFloor))
             return
 
-        if self.current_floor == target_floor:
+        if self.current_floor == targetFloor:
 
             return
         
-        self._change_floor_after_room(target_floor)
+        self.changeFloorAfterRoom(targetFloor)
 
-    def _change_floor_after_room(self, target_floor):
-        if self.current_floor == target_floor:
-            self.reload_floor_map()
+    def changeFloorAfterRoom(self, targetFloor):
+        if self.current_floor == targetFloor:
+            self.reloadFloorMap()
             return
 
         current_floor_number = int(self.current_floor.split()[-1])
-        target_floor_number = int(target_floor.split()[-1])
+        target_floor_number = int(targetFloor.split()[-1])
         direction = "up" if target_floor_number > current_floor_number else "down"
-        self.current_floor = target_floor
-        self.update_floor_selection()
-        self.animator.change_floor_slide(
-            self.floors_data[target_floor], target_floor,
+        self.current_floor = targetFloor
+        self.updateFloorSelection()
+        self.animator.changeFloorSlide(
+            self.floorsData[targetFloor], targetFloor,
             direction,
-            hover_cb=self.on_room_hover,
-            click_cb=self.on_room_click,
-            on_complete=self.update_dashboard
+            hoverCallback=self.onRoomHover,
+            clickCallback=self.onRoomClick,
+            onComplete=self.updateDashboard
         )
     #room hover effect
-    def on_room_hover(self, room_data, entering):
-        self.animator.hover_zoom(room_data, entering)
+    def onRoomHover(self, roomData, entering):
+        self.animator.hoverZoom(roomData, entering)
         if entering:
-            self.update_preview(room_data)
+            self.updatePreview(roomData)
         else:
-            self.clear_preview()
+            self.clearPreview()
     #room click effect
-    def on_room_click(self, room_data):
-        self.selected_room = room_data
-        self.animator.zoom_into_room(room_data, on_complete_callback=self.open_room_menu)
+    def onRoomClick(self, roomData):
+        self.selectedRoom = roomData
+        self.animator.zoomIntoRoom(roomData, onCompleteCallback=self.openRoomMenu)
 
-    def open_room_menu(self, room_data):
-        self.animator.draw_room_menu_overlay(room_data, back_callback=self.return_to_current_floor)
+    def openRoomMenu(self, roomData):
+        self.animator.drawRoomMenuOverlay(roomData, backCallback=self.returnToCurrentFloor)
     #room menu back button
-    def return_to_current_floor(self):
-        if self.animator.is_animating:
+    def returnToCurrentFloor(self):
+        if self.animator.isAnimating:
             return
-        self.animator.zoom_out_room_view(self.reload_floor_map)
+        self.animator.zoomOutRoomView(self.reloadFloorMap)
 
-    def update_preview(self, room_data):
-        self.update_dashboard()
+    def updatePreview(self, roomData):
+        self.updateDashboard()
 
-    def clear_preview(self):
-        self.update_dashboard()
+    def clearPreview(self):
+        self.updateDashboard()
 
-    def update_dashboard(self):
+    def updateDashboard(self):
         self.dashboard_canvas.delete("all")
+
+    def drawArrow(self, canvas, x1, y1, x2, y2, arrow_Angle, color, width=2):
+        #angles
+        x3 = x2 - arrow_length * math.cos(angle - arrow_Angle)
+        y3 = y2 - arrow_length * math.sin(angle - arrow_Angle)
+        x4 = x2 - arrow_length * math.cos(angle + arrow_Angle)
+        y4 = y2 - arrow_length * math.sin(angle + arrow_Angle)
+
+        canvas.createSquareLine(x1, y1, x2, y2, color=color, width=width)
+        # Calculate the angle of the line
+        import math
+        angle = math.atan2(y2 - y1, x2 - x1)
+        # Length of the arrowhead lines
+        arrow_length = 10
+        # Calculate the points for the arrowhead
+
+
+        # Draw the arrowhead
+        canvas.create_polygon(x2, y2, x3, y3, x4, y4, fill=color)
     #Theme application (would add more later)
     def apply_theme(self):
         t = self.get_current_theme()
@@ -273,14 +312,14 @@ class ACStatFullScreenApp:
         self.btn_floor1.configure(bg=t["btn_bg"], fg=t["btn_fg"])
         self.btn_floor2.configure(bg=t["btn_bg"], fg=t["btn_fg"])
         self.btn_floor3.configure(bg=t["btn_bg"], fg=t["btn_fg"])
-        self.update_floor_selection()
+        self.updateFloorSelection()
 
-        if self.animator.is_in_room_menu and self.selected_room:
-            self.animator.draw_room_menu_overlay(self.selected_room, back_callback=self.return_to_current_floor)
+        if self.animator.isInRoomMenu and self.selectedRoom:
+            self.animator.drawRoomMenuOverlay(self.selectedRoom, backCallback=self.returnToCurrentFloor)
 
-        self.update_dashboard()
+        self.updateDashboard()
 
-    def update_floor_selection(self):
+    def updateFloorSelection(self):
         # Gives the active floor a clear visual state.
         t = self.get_current_theme()
         floor_buttons = {

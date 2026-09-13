@@ -9,3 +9,6 @@ venv/
 # VS Code Code Runner temporary files
 *.tempCodeRunnerFile
 tempCodeRunnerFile*
+
+#database
+facilityData.db

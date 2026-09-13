@@ -1,49 +1,62 @@
+import sys
 import tkinter as tk
+from pathlib import Path
+
+src_dir = Path(__file__).resolve().parents[1]
+for candidate in (str(src_dir), str(src_dir.parent)):
+    if candidate not in sys.path:
+        sys.path.insert(0, candidate)
+
+try:
+    from gui.roomDesign import RoomDesigner
+except ModuleNotFoundError:
+    from src.gui.roomDesign import RoomDesigner
 
 class CanvasAnimationManager:
     #Handles canvas rendering, room hovering, zoom-to-menu transitions, and slide animations.
     
-    def __init__(self, canvas, root, theme_getter):
+    def __init__(self, canvas, root, themeGetter):
         self.canvas = canvas
         self.root = root
-        self.get_theme = theme_getter
+        self.getTheme = themeGetter
         
-        self.is_animating = False
-        self.active_room = None
-        self.is_in_room_menu = False
+        self.isAnimating = False
+        self.activeRoom = None
+        self.isInRoomMenu = False
+        self.roomDesigner = RoomDesigner(canvas)
 
-    def draw_floor_items(self, floor_data, floor_name, hover_callback, click_callback, offset_x=0):
-        for room in floor_data:
+    def drawFloorItems(self, floorData, floorName, hoverCallback, clickCallback, offsetX=0):
+        for room in floorData:
             name = room["name"]
             x1, y1, x2, y2 = room["coords"]
-            fill_color = self.get_temperature_color(room)
+            fillColor = self.getTemperatureColor(room)
             
-            rect_tag = f"{name}_rect"
+            rectTag = f"{name}Rect"
 
             # Draw Room Box
             self.canvas.create_rectangle(
-                x1 + offset_x, y1, x2 + offset_x, y2, 
-                fill=fill_color, outline="#1254A0", width=2,
-                tags=(name, rect_tag, "floor_items")
+                x1 + offsetX, y1, x2 + offsetX, y2,
+                fill=fillColor, outline="#690000", width=2,
+                tags=(name, rectTag, "floorItems")
             )
 
             # Draw Room Label
             self.canvas.create_text(
-                (x1 + x2) / 2 + offset_x, (y1 + y2) / 2,
+                (x1 + x2) / 2 + offsetX, (y1 + y2) / 2,
                 text=name, justify="center",
                 font=("Segoe UI", 11, "bold"), fill="#FFFFFF",
-                tags=(name, "floor_items")
+                tags=(name, "floorItems")
             )
 
             # Only classroom rooms open the interactive room view.
-            if room.get("has_stats", True):
-                self.canvas.tag_bind(name, "<Enter>", lambda e, r=room: hover_callback(r, True))
-                self.canvas.tag_bind(name, "<Leave>", lambda e, r=room: hover_callback(r, False))
-                self.canvas.tag_bind(name, "<Button-1>", lambda e, r=room: click_callback(r))
+            if room.get("hasStats", True):
+                self.canvas.tag_bind(name, "<Enter>", lambda e, r=room: hoverCallback(r, True))
+                self.canvas.tag_bind(name, "<Leave>", lambda e, r=room: hoverCallback(r, False))
+                self.canvas.tag_bind(name, "<Button-1>", lambda e, r=room: clickCallback(r))
     #color determination based on temperature and AC power state
     @staticmethod
-    def get_temperature_color(room):
-        if room.get("ac_power") == "OFF":
+    def getTemperatureColor(room):
+        if room.get("acPower") == "OFF":
             return "#616161"
 
         temperature = room.get("temp")
@@ -55,215 +68,153 @@ class CanvasAnimationManager:
             return "#FFC107"
         return "#00ADB5"
 
-    def hover_zoom(self, room_data, entering):
+    def hoverZoom(self, roomData, entering):
         # Expands room bounds slightly on mouse hover.
-        if self.is_animating or self.is_in_room_menu:
+        if self.isAnimating or self.isInRoomMenu:
             return
 
-        rect_tag = f"{room_data['name']}_rect"
-        x1, y1, x2, y2 = room_data["coords"]
+        rectTag = f"{roomData['name']}Rect"
+        x1, y1, x2, y2 = roomData["coords"]
 
         if entering:
             zoom = 8
-            self.canvas.coords(rect_tag, x1 - zoom, y1 - zoom, x2 + zoom, y2 + zoom)
-            self.canvas.itemconfig(rect_tag, outline="#FFFFFF", width=3)
+            self.canvas.coords(rectTag, x1 - zoom, y1 - zoom, x2 + zoom, y2 + zoom)
+            self.canvas.itemconfig(rectTag, outline="#FFFFFF", width=3)
         else:
-            self.canvas.coords(rect_tag, x1, y1, x2, y2)
-            self.canvas.itemconfig(rect_tag, outline="#1254A0", width=2)
+            self.canvas.coords(rectTag, x1, y1, x2, y2)
+            self.canvas.itemconfig(rectTag, outline="#1254A0", width=2)
 
-    def zoom_into_room(self, room_data, on_complete_callback, step=0, total_steps=18):
+    def zoomIntoRoom(self, roomData, onCompleteCallback, step=0, totalSteps=18):
         # Animates canvas scaling centered on the clicked room object.
         if step == 0:
-            if self.is_animating:
+            if self.isAnimating:
                 return
-            self.is_animating = True
-            self.is_in_room_menu = True
+            self.isAnimating = True
+            self.isInRoomMenu = True
 
-        tag = room_data["name"]
+        tag = roomData["name"]
         bbox = self.canvas.bbox(tag)
         if not bbox:
-            self.is_animating = False
+            self.isAnimating = False
             return
 
         # Target center calculation
-        canvas_w = self.canvas.winfo_width() or 900
-        canvas_h = self.canvas.winfo_height() or 500
-        screen_cx, screen_cy = canvas_w / 2, canvas_h / 2
-        obj_cx, obj_cy = (bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2
+        canvasWidth = self.canvas.winfo_width() or 900
+        canvasHeight = self.canvas.winfo_height() or 500
+        screenCx, screenCy = canvasWidth / 2, canvasHeight / 2
+        objectCx, objectCy = (bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2
 
-        scale_factor = 1.12
-        dx = (screen_cx - obj_cx) * 0.3
-        dy = (screen_cy - obj_cy) * 0.3
+        scaleFactor = 1.12
+        dx = (screenCx - objectCx) * 0.3
+        dy = (screenCy - objectCy) * 0.3
 
         self.canvas.move("all", dx, dy)
-        self.canvas.scale("all", screen_cx, screen_cy, scale_factor, scale_factor)
+        self.canvas.scale("all", screenCx, screenCy, scaleFactor, scaleFactor)
 
-        if step < total_steps:
-            self.root.after(16, lambda: self.zoom_into_room(room_data, on_complete_callback, step + 1, total_steps))
+        if step < totalSteps:
+            self.root.after(16, lambda: self.zoomIntoRoom(roomData, onCompleteCallback, step + 1, totalSteps))
         else:
-            self.is_animating = False
-            on_complete_callback(room_data)
-    def zoom_out_of_room(self, on_complete_callback, step=0, total_steps=18):
+            self.isAnimating = False
+            onCompleteCallback(roomData)
+
+    def zoomOutOfRoom(self, onCompleteCallback, step=0, totalSteps=18):
         # Reverses the zoom-in animation to return to the original canvas view.
         if step == 0:
-            if self.is_animating:
+            if self.isAnimating:
                 return
-            self.is_animating = True
+            self.isAnimating = True
 
-        scale_factor = 1 / 1.12
-        canvas_w = self.canvas.winfo_width() or 900
-        canvas_h = self.canvas.winfo_height() or 500
-        screen_cx, screen_cy = canvas_w / 2, canvas_h / 2
+        scaleFactor = 1 / 1.12
+        canvasWidth = self.canvas.winfo_width() or 900
+        canvasHeight = self.canvas.winfo_height() or 500
+        screenCx, screenCy = canvasWidth / 2, canvasHeight / 2
 
-        self.canvas.scale("all", screen_cx, screen_cy, scale_factor, scale_factor)
-        self.canvas.move("all", -((screen_cx - screen_cx) * 0.3), -((screen_cy - screen_cy) * 0.3))
+        self.canvas.scale("all", screenCx, screenCy, scaleFactor, scaleFactor)
+        self.canvas.move("all", -((screenCx - screenCx) * 0.3), -((screenCy - screenCy) * 0.3))
 
-        if step < total_steps:
-            self.root.after(16, lambda: self.zoom_out_of_room(on_complete_callback, step + 1, total_steps))
+        if step < totalSteps:
+            self.root.after(16, lambda: self.zoomOutOfRoom(onCompleteCallback, step + 1, totalSteps))
         else:
-            self.is_animating = False
-            self.is_in_room_menu = False
-            on_complete_callback()
+            self.isAnimating = False
+            self.isInRoomMenu = False
+            onCompleteCallback()
 
-    def zoom_out_room_view(self, on_complete_callback, step=0, total_steps=12):
+    def zoomOutRoomView(self, onCompleteCallback, step=0, totalSteps=12):
         # Animates the room scene away before returning to the floor map.
         if step == 0:
-            if self.is_animating:
+            if self.isAnimating:
                 return
-            self.is_animating = True
+            self.isAnimating = True
             self.canvas.delete("ac_focus")
 
-        canvas_w = self.canvas.winfo_width() or 1200
-        canvas_h = self.canvas.winfo_height() or 700
-        self.canvas.scale("all", canvas_w / 2, canvas_h / 2, 0.88, 0.88)
-        if step < total_steps:
-            self.root.after(16, lambda: self.zoom_out_room_view(on_complete_callback, step + 1, total_steps))
+        canvasWidth = self.canvas.winfo_width() or 1200
+        canvasHeight = self.canvas.winfo_height() or 700
+        self.canvas.scale("all", canvasWidth / 2, canvasHeight / 2, 0.88, 0.88)
+        if step < totalSteps:
+            self.root.after(16, lambda: self.zoomOutRoomView(onCompleteCallback, step + 1, totalSteps))
         else:
-            self.is_animating = False
-            self.is_in_room_menu = False
+            self.isAnimating = False
+            self.isInRoomMenu = False
             self.canvas.delete("all")
-            on_complete_callback()
+            onCompleteCallback()
 
-    def draw_room_view(self, room_data, on_ac_click, on_back_click):
-        #Renders the interior of specific roomS
-        self.canvas.delete("all")
-        self.is_in_room_menu = True
-        self.active_room = room_data
+    def drawRoomView(self, roomData, onAcClick, onBackClick):
+        self.isInRoomMenu = True
+        self.activeRoom = roomData
+        self.roomDesigner.drawRoomView(roomData, onAcClick, onBackClick)
 
-        canvas_w = self.canvas.winfo_width() or 900
-        canvas_h = self.canvas.winfo_height() or 560
-        room_x1 = max(140, min(180, canvas_w * 0.18))
-        room_y1 = 55
-        room_x2, room_y2 = canvas_w - 40, canvas_h - 45
-        room_width = room_x2 - room_x1
-        room_height = room_y2 - room_y1
-
-        # Simple top-down floor plan: a room outline, one tiny whiteboard, and chairs.
-        self.canvas.create_rectangle(room_x1, room_y1, room_x2, room_y2, fill="#1E1E24", outline="#FF2A42", width=3, tags="room_element")
-        whiteboard_x = room_x1 + room_width * 0.325
-        self.canvas.create_rectangle(whiteboard_x, room_y1 + 18, whiteboard_x + room_width * 0.4, room_y1 + 27, fill="#F0F0F0", outline="#A0A0A0", tags="room_element")
-
-        chair_width = max(44, min(48, room_width * 0.07))
-        chair_height = chair_width * 0.55
-        chair_start_x = room_x1 + room_width * 0.25
-        chair_y = room_y1 + room_height * 0.18
-        for row in range(6):
-            for column in range(6):
-                chair_x = chair_start_x + column * (chair_width * 1.7)
-                chair_top = chair_y + row * (chair_height * 2.0)
-                self.canvas.create_rectangle(chair_x, chair_top, chair_x + chair_width, chair_top + chair_height, fill="#8B5A2B", outline="#5A351A", tags="room_element")
-
-        # Two AC units stay on the left wall and face inward toward the students.
-        ac_x = room_x1 + 18
-        ac_width = max(45, min(67, room_width * 0.049))
-        ac_height = max(84, min(109, room_height * 0.098))
-        ac_ids = room_data.get("ac_ids", [room_data.get("ac_id", "AC UNIT") + "-1", room_data.get("ac_id", "AC UNIT") + "-2"])
-        for ac_index, fraction in enumerate((2 / 6, 4 / 6)):
-            ac_y = room_y1 + room_height * fraction - 20
-            ac_tag = f"interactive_ac_{ac_index}"
-            self.canvas.create_rectangle(ac_x, ac_y, ac_x + ac_width, ac_y + ac_height, fill="#E0E0E0", outline="#2B2D42", width=2, tags=("interactive_ac", ac_tag, "ac_element"))
-            self.canvas.create_line(ac_x + ac_width * 0.65, ac_y + 7, ac_x + ac_width * 0.65, ac_y + ac_height - 7, fill="#4A4E69", width=3, tags=("interactive_ac", ac_tag, "ac_element"))
-            self.canvas.create_oval(ac_x + 7, ac_y + 8, ac_x + 15, ac_y + 17, fill="#00FF66", outline="", tags=("interactive_ac", ac_tag, "ac_element"))
-            self.canvas.tag_bind(ac_tag, "<Button-1>", lambda e, index=ac_index: on_ac_click(index))
-
-        # Bind click events exclusively to the AC unit
-        self.canvas.tag_bind("interactive_ac", "<Enter>", lambda e: self.canvas.config(cursor="hand2"))
-        self.canvas.tag_bind("interactive_ac", "<Leave>", lambda e: self.canvas.config(cursor=""))
-
-        # Back button sits in the navigation space just outside the room.
-        back_x1 = max(10, room_x1 - 135)
-        back_x2 = room_x1 - 15
-        back_y1 = (room_y1 + room_y2 - 40) / 2
-        back_y2 = back_y1 + 40
-        self.canvas.create_rectangle(back_x1, back_y1, back_x2, back_y2, fill="#FF2A42", tags="back_btn")
-        self.canvas.create_text((back_x1 + back_x2) / 2, (back_y1 + back_y2) / 2, text="< BACK TO MAP", fill="#FFFFFF", font=("Segoe UI", 10, "bold"), tags="back_btn")
-        self.canvas.tag_bind("back_btn", "<Button-1>", lambda e: on_back_click())
-        self.canvas.tag_bind("back_btn", "<Enter>", lambda e: self.canvas.config(cursor="hand2"))
-        self.canvas.tag_bind("back_btn", "<Leave>", lambda e: self.canvas.config(cursor=""))
-
-    def draw_room_menu_overlay(self, room_data, back_callback):
+    def drawRoomMenuOverlay(self, roomData, backCallback):
         # Keep the public API used by Window.py while rendering the room view.
-        self.draw_room_view(
-            room_data,
-            on_ac_click=lambda ac_index: self.show_ac_info(room_data, ac_index),
-            on_back_click=back_callback,
+        self.drawRoomView(
+            roomData,
+            onAcClick=lambda acIndex: self.showAcInfo(roomData, acIndex),
+            onBackClick=backCallback,
         )
 
-    def show_ac_info(self, room_data, ac_index=0):
-        #darken back screen
-        self.canvas.delete("ac_focus")
-        self.canvas.create_rectangle(
-            0, 0, self.canvas.winfo_width() or 1200, self.canvas.winfo_height() or 700,
-            fill="#000000", stipple="gray50", outline="", tags="ac_focus"
-        )
+    def showAcInfo(self, roomData, acIndex=0):
+        self.roomDesigner.showAcInfo(roomData, acIndex)
 
-        panel_x, panel_y = 410, 205
-        self.canvas.create_rectangle(
-            panel_x, panel_y, 810, 490, fill="#101318", outline="#00ADB5", width=2,
-            tags="ac_focus"
-        )
-        self.canvas.tag_bind("ac_focus", "<Button-1>", lambda e: self.canvas.delete("ac_focus"))
-        self.canvas.tag_bind("ac_focus", "<Enter>", lambda e: self.canvas.config(cursor="hand2"))
-        self.canvas.tag_bind("ac_focus", "<Leave>", lambda e: self.canvas.config(cursor=""))
-
-    def change_floor_slide(self, target_floor_data, target_floor_name, direction, hover_cb, click_cb, on_complete):
+    def changeFloorSlide(self, targetFloorData, targetFloorName, direction, hoverCallback, clickCallback, onComplete):
         # Executes directional floor transition slide animation (left or right).
-        if self.is_animating:
+        if self.isAnimating:
             return
             
-        self.is_animating = True
+        self.isAnimating = True
         
         # Tag active items to move them out
-        for item in self.canvas.find_withtag("floor_items"):
-            self.canvas.addtag_withtag("old_floor_items", item)
-            self.canvas.dtag(item, "floor_items")
+        for item in self.canvas.find_withtag("floorItems"):
+            self.canvas.addtag_withtag("oldFloorItems", item)
+            self.canvas.dtag(item, "floorItems")
 
         # Determine slide direction:
         # Going UP a floor -> new floor slides in from Right (+1500 -> move left)
         # Going DOWN a floor -> new floor slides in from Left (-1500 -> move right)
-        slide_distance = 1500 if direction == "up" else -1500
+        slideDistance = 1500 if direction == "up" else -1500
         
-        self.draw_floor_items(target_floor_data, target_floor_name, hover_cb, click_cb, offset_x=slide_distance)
-        self._animate_slide(0, slide_distance, direction, on_complete)
+        self.drawFloorItems(targetFloorData, targetFloorName, hoverCallback, clickCallback, offsetX=slideDistance)
+        self.animateSlide(0, slideDistance, direction, onComplete)
 
-    def _animate_slide(self, current_moved, total_to_move, direction, on_complete):
-        step_val = 100
+    def animateSlide(self, currentMoved, totalToMove, direction, onComplete):
+        stepValue = 100
         # Determine movement vector based on direction
-        step = -step_val if direction == "up" else step_val
-        abs_total = abs(total_to_move)
+        step = -stepValue if direction == "up" else stepValue
+        absTotal = abs(totalToMove)
 
-        if current_moved + step_val > abs_total:
-            remaining = abs_total - current_moved
+        if currentMoved + stepValue > absTotal:
+            remaining = absTotal - currentMoved
             step = -remaining if direction == "up" else remaining
 
-        self.canvas.move("old_floor_items", step, 0)
-        self.canvas.move("floor_items", step, 0)
+        self.canvas.move("oldFloorItems", step, 0)
+        self.canvas.move("floorItems", step, 0)
 
-        current_moved += step_val
+        currentMoved += stepValue
 
-        if current_moved < abs_total:
-            self.root.after(16, lambda: self._animate_slide(current_moved, total_to_move, direction, on_complete))
+        if currentMoved < absTotal:
+            self.root.after(16, lambda: self.animateSlide(currentMoved, totalToMove, direction, onComplete))
         else:
-            self.canvas.delete("old_floor_items")
-            self.is_animating = False
-            on_complete()
+            self.canvas.delete("oldFloorItems")
+            self.isAnimating = False
+            onComplete()
+
+    def backgroundAnimation():
+        pass
