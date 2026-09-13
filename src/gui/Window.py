@@ -188,7 +188,7 @@ class ACStatFullScreenApp:
         self.footer.pack(side="bottom", anchor="w", padx=25, pady=8)
 
     def setup_dashboard_card(self):
-        self.dashboard_title = tk.Label(self.preview_card, text="", font=("Segoe UI", 10, "bold"))
+        self.dashboard_title = tk.Label(self.preview_card, text="FLOOR SUMMARY", font=("Segoe UI", 10, "bold"))
         self.dashboard_title.pack(anchor="w", padx=20, pady=(20, 5))
         self.dashboard_floor = tk.Label(self.preview_card, text="", font=("Segoe UI", 13, "bold"))
         self.dashboard_floor.pack(anchor="w", padx=20, pady=(0, 8))
@@ -262,7 +262,92 @@ class ACStatFullScreenApp:
         self.updateDashboard()
 
     def updateDashboard(self):
+        theme = self.get_current_theme()
+        floor_data = self.floorsData.get(self.current_floor, [])
+        stats_rooms = [room for room in floor_data if room.get("hasStats", True)]
+        status_counts = {"ON": 0, "OFF": 0, "NO DATA": 0}
+        temperatures = []
+        ac_count = 0
+
+        for room in stats_rooms:
+            temperature = room.get("temp")
+            if temperature is None:
+                status_counts["NO DATA"] += 1
+            else:
+                temperatures.append(temperature)
+
+            if room.get("acPower") == "OFF":
+                status_counts["OFF"] += 1
+            elif temperature is not None:
+                status_counts["ON"] += 1
+
+            ac_count += room.get("jumlahAc") or 0
+
+        average_temperature = (
+            f"{sum(temperatures) / len(temperatures):.1f} C"
+            if temperatures else "--"
+        )
+        self.dashboard_floor.configure(text=self.current_floor)
         self.dashboard_canvas.delete("all")
+
+        canvas_width = max(self.dashboard_canvas.winfo_width(), 250)
+        center_x = canvas_width / 2
+        center_y = 125
+        radius = 72
+        total = sum(status_counts.values())
+        colors = {"ON": "#00ADB5", "OFF": "#D92323", "NO DATA": "#757575"}
+
+        if total:
+            start_angle = 90
+            for label, count in status_counts.items():
+                if not count:
+                    continue
+                extent = 360 * count / total
+                self.dashboard_canvas.create_arc(
+                    center_x - radius, center_y - radius,
+                    center_x + radius, center_y + radius,
+                    start=start_angle, extent=-extent,
+                    fill=colors[label], outline=theme["card_bg"], width=2,
+                )
+                start_angle -= extent
+            self.dashboard_canvas.create_oval(
+                center_x - 35, center_y - 35,
+                center_x + 35, center_y + 35,
+                fill=theme["card_bg"], outline=theme["card_bg"],
+            )
+            self.dashboard_canvas.create_text(
+                center_x, center_y, text=str(total),
+                fill=theme["text"], font=("Segoe UI", 16, "bold"),
+            )
+        else:
+            self.dashboard_canvas.create_text(
+                center_x, center_y, text="No room data",
+                fill=theme["muted"], font=("Segoe UI", 11),
+            )
+
+        legend_y = 220
+        for index, (label, count) in enumerate(status_counts.items()):
+            y = legend_y + index * 26
+            self.dashboard_canvas.create_rectangle(
+                28, y - 7, 40, y + 5, fill=colors[label], outline=colors[label]
+            )
+            self.dashboard_canvas.create_text(
+                50, y - 1, text=f"{label.title()}  {count}", anchor="w",
+                fill=theme["text"], font=("Segoe UI", 10)
+            )
+
+        self.dashboard_canvas.create_text(
+            28, 320, text=f"Rooms with data     {len(temperatures)}",
+            anchor="w", fill=theme["text"], font=("Segoe UI", 10)
+        )
+        self.dashboard_canvas.create_text(
+            28, 348, text=f"Total AC units       {ac_count}",
+            anchor="w", fill=theme["text"], font=("Segoe UI", 10)
+        )
+        self.dashboard_canvas.create_text(
+            28, 376, text=f"Average temperature  {average_temperature}",
+            anchor="w", fill=theme["text"], font=("Segoe UI", 10)
+        )
 
     def drawArrow(self, canvas, x1, y1, x2, y2, arrow_Angle, color, width=2):
         #angles
