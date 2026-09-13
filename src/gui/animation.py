@@ -62,9 +62,9 @@ class CanvasAnimationManager:
         temperature = room.get("temp")
         if temperature is None:
             return "#757575"
-        if temperature >= 75:
+        if temperature >= 23:
             return "#FF5722"
-        if temperature >= 73:
+        if temperature >= 25:
             return "#FFC107"
         return "#00ADB5"
 
