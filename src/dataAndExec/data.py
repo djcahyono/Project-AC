@@ -1,4 +1,5 @@
 from contextlib import contextmanager
+import hmac
 from pathlib import Path
 import sqlite3
 #Initial Data
@@ -45,6 +46,25 @@ InitialRoomData = {
 }
 
 databasePath = Path(__file__).resolve().parents[2] / "facilityData.db"
+
+
+class _RoomEditor:
+    def __init__(self, provider, roomName):
+        self.provider = provider
+        self.roomName = roomName
+
+    def update(self, **values):
+        raise NotImplementedError
+
+
+class _EditableRoomEditor(_RoomEditor):
+    def update(self, **values):
+        self.provider.updateRoom(self.roomName, **values)
+
+
+class _ReadOnlyRoomEditor(_RoomEditor):
+    def update(self, **values):
+        raise PermissionError(f"Room cannot be edited: {self.roomName}")
 
 
 class RoomDataProvider:
@@ -107,6 +127,13 @@ class RoomDataProvider:
                     password TEXT NOT NULL
                 )
             """)
+            authColumns = {
+                row[1] for row in connection.execute("PRAGMA table_info(RoomAuth)")
+            }
+            if "room_name" in authColumns and "roomName" not in authColumns:
+                connection.execute(
+                    "ALTER TABLE RoomAuth RENAME COLUMN room_name TO roomName"
+                )
 
     def seedInitialData(self):
         with self.connect() as connection:
@@ -127,6 +154,33 @@ class RoomDataProvider:
                     values.get("remoteBrand"),
                     int(values.get("hasStats", True)),
                 ))
+                connection.execute(
+                    "INSERT OR IGNORE INTO RoomAuth (roomName, password) VALUES (?, ?)",
+                    (roomName, self.__roomPassword(roomName)),
+                )
+
+    @staticmethod
+    def __roomPassword(roomName):
+        return f"{roomName}123"
+
+    @staticmethod
+    def __normalizeBrand(value):
+        if value is None:
+            return None
+        return ", ".join(part.strip().capitalize() for part in str(value).split(","))
+
+    def authenticateRoom(self, roomName, password):
+        with self.connect() as connection:
+            row = connection.execute(
+                "SELECT password FROM RoomAuth WHERE roomName = ?", (roomName,)
+            ).fetchone()
+        return bool(row) and hmac.compare_digest(row["password"], password)
+
+    def getRoomEditor(self, roomName):
+        room = self.getRoom(roomName)
+        if room and room.get("hasStats"):
+            return _EditableRoomEditor(self, roomName)
+        return _ReadOnlyRoomEditor(self, roomName)
 
     def getRoom(self, roomName):
         with self.connect() as connection:
@@ -143,6 +197,10 @@ class RoomDataProvider:
         changes = {key: value for key, value in values.items() if key in allowed}
         if not changes:
             raise ValueError("No valid room fields were provided")
+
+        for key in ("acBrand", "remoteBrand"):
+            if key in changes:
+                changes[key] = self.__normalizeBrand(changes[key])
 
         assignments = ", ".join(f"{key} = ?" for key in changes)
         with self.connect() as connection:

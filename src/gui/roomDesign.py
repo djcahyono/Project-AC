@@ -2,7 +2,7 @@ class RoomDesigner:
     def __init__(self, canvas):
         self.canvas = canvas
 
-    def drawRoomView(self, roomData, onAcClick, onBackClick):
+    def drawRoomView(self, roomData, onAcClick, onBackClick, onEditClick=None):
         self.canvas.delete("all")
 
         canvasWidth = self.canvas.winfo_width() or 900
@@ -103,6 +103,28 @@ class RoomDesigner:
             "backBtn", "<Leave>",
             lambda e: self.canvas.config(cursor="")
         )
+
+        editY1 = backY2 + 15
+        editY2 = editY1 + 40
+        self.canvas.create_rectangle(
+            backX1, editY1, backX2, editY2,
+            fill="#00ADB5", tags="editBtn"
+        )
+        self.canvas.create_text(
+            (backX1 + backX2) / 2, (editY1 + editY2) / 2,
+            text="EDIT ROOM", fill="#FFFFFF",
+            font=("Segoe UI", 10, "bold"), tags="editBtn"
+        )
+        if onEditClick:
+            self.canvas.tag_bind("editBtn", "<Button-1>", lambda e: onEditClick())
+            self.canvas.tag_bind(
+                "editBtn", "<Enter>",
+                lambda e: self.canvas.config(cursor="hand2")
+            )
+            self.canvas.tag_bind(
+                "editBtn", "<Leave>",
+                lambda e: self.canvas.config(cursor="")
+            )
 
     def showAcInfo(self, roomData, acIndex=0):
         self.canvas.delete("ac_focus")

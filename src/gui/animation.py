@@ -62,9 +62,9 @@ class CanvasAnimationManager:
         temperature = room.get("temp")
         if temperature is None:
             return "#757575"
-        if temperature >= 75:
+        if temperature >= 23:
             return "#FF5722"
-        if temperature >= 73:
+        if temperature >= 25:
             return "#FFC107"
         return "#00ADB5"
 
@@ -158,17 +158,20 @@ class CanvasAnimationManager:
             self.canvas.delete("all")
             onCompleteCallback()
 
-    def drawRoomView(self, roomData, onAcClick, onBackClick):
+    def drawRoomView(self, roomData, onAcClick, onBackClick, onEditClick=None):
         self.isInRoomMenu = True
         self.activeRoom = roomData
-        self.roomDesigner.drawRoomView(roomData, onAcClick, onBackClick)
+        self.roomDesigner.drawRoomView(
+            roomData, onAcClick, onBackClick, onEditClick
+        )
 
-    def drawRoomMenuOverlay(self, roomData, backCallback):
+    def drawRoomMenuOverlay(self, roomData, backCallback, editCallback=None):
         # Keep the public API used by Window.py while rendering the room view.
         self.drawRoomView(
             roomData,
             onAcClick=lambda acIndex: self.showAcInfo(roomData, acIndex),
             onBackClick=backCallback,
+            onEditClick=editCallback,
         )
 
     def showAcInfo(self, roomData, acIndex=0):
