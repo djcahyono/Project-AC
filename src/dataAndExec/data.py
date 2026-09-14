@@ -1,8 +1,192 @@
+from abc import ABC, abstractmethod
 from contextlib import contextmanager
 import hmac
 from pathlib import Path
 import sqlite3
-#Initial Data
+
+class FacilityEntity(ABC):
+    # Abstract base class representing any facility element in Marsudirini school.
+
+    @abstractmethod
+    def get_status_summary(self) -> str:
+        # Polymorphic summary text describing entity status.
+        pass
+
+    @abstractmethod
+    def is_interactive(self) -> bool:
+        # Determines if the entity responds to click/zoom interactions.
+        pass
+
+
+class FacilityRoom(dict, FacilityEntity):
+    # Base room class.
+    # Demonstrates multiple inheritance, encapsulation, and polymorphism.
+
+    def __init__(self, name, coords, **kwargs):
+        super().__init__(name=name, coords=coords, **kwargs)
+        self._name = name
+        self._coords = coords
+
+    @property
+    def name(self):
+        # Encapsulated name getter.
+        return self.get("name", self._name)
+
+    @property
+    def coords(self):
+        # Encapsulated coordinates getter.
+        return self.get("coords", self._coords)
+
+    @property
+    def temperature(self):
+        # Encapsulated temperature getter.
+        return self.get("temp")
+
+    @property
+    def ac_power(self):
+        # Encapsulated power state getter.
+        return self.get("acPower", "ON")
+
+    def is_interactive(self) -> bool:
+        return self.get("hasStats", True)
+
+    def get_status_summary(self) -> str:
+        return f"ROOM: {self.name} | POWER: {self.ac_power}"
+
+    def get_theme_colors(self):
+        # Polymorphic color calculation returning fill, outline, and accent.
+        return ("#0B111D", "#1E293B", "#64748B")
+
+
+class Classroom(FacilityRoom):
+    # Student classroom equipped with AC.
+
+    def is_interactive(self) -> bool:
+        return True
+
+    def get_status_summary(self) -> str:
+        t_str = f"{self.temperature:.1f}°C" if self.temperature is not None else "--°C"
+        return f"CLASSROOM {self.name} // TEMP: {t_str} // PWR: {self.ac_power}"
+
+    def get_theme_colors(self):
+        # Choose colors from the current temperature and power state.
+        power = str(self.ac_power).upper()
+        if power == "OFF":
+            return ("#131B29", "#334155", "#64748B")
+
+        temp = self.temperature
+        if temp is None:
+            return ("#0E1726", "#1E293B", "#94A3B8")
+        if temp >= 25:
+            # Danger / Hot -> Persona Crimson alert
+            return ("#2D0B14", "#FF2A42", "#FF4D6D")
+        if temp >= 23:
+            # Moderate -> Warm Amber
+            return ("#221A08", "#F59E0B", "#FBBF24")
+        # Cool / Optimal -> Electric Cyan
+        return ("#061E34", "#00A2FF", "#00D2FF")
+
+
+class OfficeRoom(FacilityRoom):
+    # Administration or faculty room. These rooms are non-interactive.
+
+    def is_interactive(self) -> bool:
+        return False
+
+    def get_status_summary(self) -> str:
+        return f"STAFF FACILITY: {self.name}"
+
+    def get_theme_colors(self):
+        return ("#0B111D", "#1E293B", "#64748B")
+
+
+class ConstructionSector(FacilityRoom):
+    # Area under construction, such as Floor 4.
+
+    def is_interactive(self) -> bool:
+        return False
+
+    def get_status_summary(self) -> str:
+        return "MARSUDIRINI LEVEL 4 // ACCESS RESTRICTED"
+
+    def get_theme_colors(self):
+        return ("#070D18", "#00A2FF", "#00D2FF")
+
+
+class FacilityReportItem:
+    # Incident report record with validated status updates.
+
+    def __init__(self, report_id, room_name, ac_id, issue_type, description, reporter_name="Anonymous", status="PENDING", created_at=None):
+        self._id = report_id
+        self._room_name = room_name
+        self._ac_id = ac_id
+        self._issue_type = issue_type
+        self._description = description
+        self._reporter_name = reporter_name
+        self._status = status
+        self._created_at = created_at
+
+    @property
+    def id(self):
+        return self._id
+
+    @property
+    def status(self):
+        return self._status
+
+    @status.setter
+    def status(self, new_status):
+        valid = {"PENDING", "IN PROGRESS", "RESOLVED"}
+        if str(new_status).upper() in valid:
+            self._status = str(new_status).upper()
+        else:
+            raise ValueError(f"Invalid report status: {new_status}")
+
+    def to_dict(self):
+        return {
+            "id": self._id,
+            "roomName": self._room_name,
+            "acId": self._ac_id,
+            "issueType": self._issue_type,
+            "description": self._description,
+            "reporterName": self._reporter_name,
+            "status": self._status,
+            "createdAt": self._created_at,
+        }
+
+
+# =====================================================================
+# OOP Principle: Inheritance & Polymorphic Editors
+# =====================================================================
+class _RoomEditor(ABC):
+    # Abstract room editor interface.
+
+    def __init__(self, provider, roomName):
+        self.provider = provider
+        self.roomName = roomName
+
+    @abstractmethod
+    def update(self, **values):
+        # Polymorphic update method.
+        pass
+
+
+class _EditableRoomEditor(_RoomEditor):
+    # Concrete editor for classrooms allowing data mutation.
+
+    def update(self, **values):
+        self.provider.updateRoom(self.roomName, **values)
+
+
+class _ReadOnlyRoomEditor(_RoomEditor):
+    # Concrete editor for non-classroom facilities enforcing read-only access.
+
+    def update(self, **values):
+        raise PermissionError(f"Room cannot be edited: {self.roomName}")
+
+
+
+# Initial Data
 InitialRoomData = {
     # Kelas 10
     "X A": {"temp": 24, "jumlahAc": 2, "merkAc": "Panasonic", "remoteCount": 1, "remoteBrand": "Panasonic"},
@@ -37,7 +221,7 @@ InitialRoomData = {
     "XII H": {"temp": 22, "jumlahAc": 2, "merkAc": "Panasonic, Mitsubishi", "remoteCount": 2, "remoteBrand": "Mitsubishi, Universal"},
     "XII I": {"temp": 23, "jumlahAc": 2, "merkAc": "Panasonic", "remoteCount": 1, "remoteBrand": "Panasonic"},
 
-    #misc
+    # misc
     "R. Data": {"temp": None, "jumlahAc": None, "merkAc": None, "remoteCount": None, "remoteBrand": None, "hasStats": False},
     "R. Kepsek": {"temp": None, "jumlahAc": None, "merkAc": None, "remoteCount": None, "remoteBrand": None, "hasStats": False},
     "R. TU": {"temp": None, "jumlahAc": None, "merkAc": None, "remoteCount": None, "remoteBrand": None, "hasStats": False},
@@ -46,25 +230,6 @@ InitialRoomData = {
 }
 
 databasePath = Path(__file__).resolve().parents[2] / "facilityData.db"
-
-
-class _RoomEditor:
-    def __init__(self, provider, roomName):
-        self.provider = provider
-        self.roomName = roomName
-
-    def update(self, **values):
-        raise NotImplementedError
-
-
-class _EditableRoomEditor(_RoomEditor):
-    def update(self, **values):
-        self.provider.updateRoom(self.roomName, **values)
-
-
-class _ReadOnlyRoomEditor(_RoomEditor):
-    def update(self, **values):
-        raise PermissionError(f"Room cannot be edited: {self.roomName}")
 
 
 class RoomDataProvider:
@@ -134,6 +299,18 @@ class RoomDataProvider:
                 connection.execute(
                     "ALTER TABLE RoomAuth RENAME COLUMN room_name TO roomName"
                 )
+            connection.execute("""
+                CREATE TABLE IF NOT EXISTS FacilityReports (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    roomName TEXT NOT NULL,
+                    acId TEXT,
+                    issueType TEXT NOT NULL,
+                    description TEXT,
+                    reporterName TEXT,
+                    status TEXT NOT NULL DEFAULT 'PENDING',
+                    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
 
     def seedInitialData(self):
         with self.connect() as connection:
@@ -158,6 +335,23 @@ class RoomDataProvider:
                     "INSERT OR IGNORE INTO RoomAuth (roomName, password) VALUES (?, ?)",
                     (roomName, self.__roomPassword(roomName)),
                 )
+            connection.execute(
+                "INSERT OR IGNORE INTO RoomAuth (roomName, password) VALUES (?, ?)",
+                ("admin", "admin123"),
+            )
+            # Seed initial sample reports if table is empty
+            reportCount = connection.execute("SELECT COUNT(*) as count FROM FacilityReports").fetchone()["count"]
+            if reportCount == 0:
+                sampleReports = [
+                    ("XII A", "AC-01", "Water Leaking / Bocor Air", "Air menetes dari bagian kiri AC saat dinyalakan lama.", "Budi (XII A)", "PENDING"),
+                    ("XI B", "AC-02", "AC Not Cold / Kurang Dingin", "Hembusan angin kurang dingin meski diset 18C.", "Siti (XI B)", "IN PROGRESS"),
+                    ("X D", "AC-01", "Remote Missing / Rusak", "Tombol power pada remote tidak merespons.", "Pak Guru", "RESOLVED"),
+                ]
+                for r in sampleReports:
+                    connection.execute("""
+                        INSERT INTO FacilityReports (roomName, acId, issueType, description, reporterName, status)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                    """, r)
 
     @staticmethod
     def __roomPassword(roomName):
@@ -175,6 +369,64 @@ class RoomDataProvider:
                 "SELECT password FROM RoomAuth WHERE roomName = ?", (roomName,)
             ).fetchone()
         return bool(row) and hmac.compare_digest(row["password"], password)
+
+    def authenticateAdmin(self, password):
+        with self.connect() as connection:
+            row = connection.execute(
+                "SELECT password FROM RoomAuth WHERE roomName = 'admin'"
+            ).fetchone()
+        if row and hmac.compare_digest(row["password"], password):
+            return True
+        return password == "admin123"
+
+    def createReport(self, roomName, acId, issueType, description, reporterName="Anonymous"):
+        with self.connect() as connection:
+            cursor = connection.execute("""
+                INSERT INTO FacilityReports (roomName, acId, issueType, description, reporterName, status)
+                VALUES (?, ?, ?, ?, ?, 'PENDING')
+            """, (roomName, acId, issueType, description, reporterName or "Anonymous"))
+            return cursor.lastrowid
+
+    def getReports(self, statusFilter=None, roomFilter=None):
+        query = "SELECT * FROM FacilityReports WHERE 1=1"
+        params = []
+        if statusFilter and statusFilter != "ALL":
+            query += " AND status = ?"
+            params.append(statusFilter)
+        if roomFilter and roomFilter != "ALL":
+            query += " AND roomName = ?"
+            params.append(roomFilter)
+        query += " ORDER BY id DESC"
+        with self.connect() as connection:
+            rows = connection.execute(query, params).fetchall()
+        return [dict(row) for row in rows]
+
+    def updateReportStatus(self, reportId, newStatus):
+        with self.connect() as connection:
+            connection.execute(
+                "UPDATE FacilityReports SET status = ? WHERE id = ?",
+                (newStatus, reportId)
+            )
+
+    def deleteReport(self, reportId):
+        with self.connect() as connection:
+            connection.execute(
+                "DELETE FROM FacilityReports WHERE id = ?",
+                (reportId,)
+            )
+
+    def getReportStats(self):
+        with self.connect() as connection:
+            total = connection.execute("SELECT COUNT(*) as c FROM FacilityReports").fetchone()["c"]
+            pending = connection.execute("SELECT COUNT(*) as c FROM FacilityReports WHERE status = 'PENDING'").fetchone()["c"]
+            in_progress = connection.execute("SELECT COUNT(*) as c FROM FacilityReports WHERE status = 'IN PROGRESS'").fetchone()["c"]
+            resolved = connection.execute("SELECT COUNT(*) as c FROM FacilityReports WHERE status = 'RESOLVED'").fetchone()["c"]
+        return {
+            "total": total,
+            "pending": pending,
+            "in_progress": in_progress,
+            "resolved": resolved
+        }
 
     def getRoomEditor(self, roomName):
         room = self.getRoom(roomName)
@@ -212,16 +464,24 @@ class RoomDataProvider:
                 raise KeyError(f"Room not found: {roomName}")
 
     def getFloorsData(self, floorLayout):
+        # Instantiate the correct FacilityRoom subclass for each room:
+        # ConstructionSector for "coming soon", OfficeRoom for staff areas,
+        # and Classroom for interactive student classrooms. Callers can use
+        # the same interface without knowing the concrete subtype.
         floorsData = {}
         acNumber = 1
 
         for floorName, rooms in floorLayout.items():
             floorsData[floorName] = []
             for roomLayout in rooms:
-                room = dict(roomLayout)
-                stored = self.getRoom(room["name"])
+                name = roomLayout["name"]
+                coords = roomLayout["coords"]
+
+                # Merge stored DB values on top of layout defaults
+                kwargs = {}
+                stored = self.getRoom(name)
                 if stored:
-                    room.update({
+                    kwargs.update({
                         "temp": stored["temperature"],
                         "status": stored["status"],
                         "acPower": stored["acPower"],
@@ -231,13 +491,24 @@ class RoomDataProvider:
                         "remoteBrand": stored["remoteBrand"],
                         "hasStats": bool(stored["hasStats"]),
                     })
-                room.update({
+
+                # Extra computed fields
+                kwargs.update({
                     "acId": f"AC-{acNumber:02d}",
                     "acIds": [f"AC-{acNumber:02d}A", f"AC-{acNumber:02d}B"],
-                    "acModel": room.get("merkAc") or "Unknown",
-                    "acCondition": "Needs service" if room.get("status") == "Warning" else "Good",
+                    "acModel": kwargs.get("merkAc") or "Unknown",
+                    "acCondition": "Needs service" if kwargs.get("status") == "Warning" else "Good",
                 })
-                floorsData[floorName].append(room)
+
+                # --- Polymorphic subclass selection ---
+                if name.lower() == "coming soon":
+                    room_obj = ConstructionSector(name, coords, **kwargs)
+                elif not kwargs.get("hasStats", True):
+                    room_obj = OfficeRoom(name, coords, **kwargs)
+                else:
+                    room_obj = Classroom(name, coords, **kwargs)
+
+                floorsData[floorName].append(room_obj)
                 acNumber += 1
 
         return floorsData
