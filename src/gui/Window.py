@@ -1,6 +1,13 @@
+import math
 import sys
 import tkinter as tk
+from tkinter import ttk, messagebox
 from pathlib import Path
+try:
+    from PIL import Image, ImageTk
+    HAS_PIL = True
+except ImportError:
+    HAS_PIL = False
 
 src_dir = Path(__file__).resolve().parents[1]
 project_root = src_dir.parent
@@ -29,15 +36,20 @@ try:
 except ModuleNotFoundError:
     from src.dataAndExec.data import RoomDataProvider
 
+
 class ACStatFullScreenApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("AC Stat - Building Management")
+        self.root.title("AC STAT // SEES FACILITY MANAGEMENT - MARSUDIRINI")
+        self.root.geometry("1320x840")
+        self.root.minsize(1050, 680)
+
         # State Variables
         self.is_dark = True
         self.current_floor = "Floor 1"
         self.selectedRoom = None
-        # x1 y1 x2 y2 coordinated
+
+        # Coordinates for rooms per floor
         floor_layout = {
             "Floor 1": [
                 {"name": "XII G", "coords": (75, 50, 175, 130)},
@@ -77,123 +89,285 @@ class ACStatFullScreenApp:
                 {"name": "X G", "coords": (780, 250, 880, 330)},
             ],
             "Floor 4": [
-                {"name": "coming soon", "coords": (30, 30, 920 ,480)}
+                {"name": "coming soon", "coords": (30, 30, 920, 480)}
             ]
         }
         self.dataProvider = RoomDataProvider()
         self.floorsData = self.dataProvider.getFloorsData(floor_layout)
 
-        # Theme Configuration
+        # Persona 3 Reload Theme Configuration
         self.themes = {
             "dark": {
-                "bg": "#0d0d0d", "top_bg": "#1b1b1b", "card_bg": "#1E1E1E",
-                "canvas_bg": "#181818", "text": "#EEEEEE", "muted": "#32BEFF",
-                "accent": "#d92323", "btn_bg": "#732424", "btn_fg": "#FFFFFF",
-                "border": "#333333"
+                "bg": "#070A12",
+                "top_bg": "#00A2FF",
+                "top_fg": "#000000",
+                "top_sub_fg": "#05203C",
+                "card_bg": "#0A0F1D",
+                "card_border": "#00D2FF",
+                "canvas_bg": "#050811",
+                "text": "#FFFFFF",
+                "text_secondary": "#94A3B8",
+                "muted": "#38BDF8",
+                "accent": "#00D2FF",
+                "danger": "#FF2A42",
+                "btn_bg": "#0A1322",
+                "btn_fg": "#FFFFFF",
+                "btn_border": "#00A2FF",
+                "border": "#1E293B",
+                "active_tab_bg": "#00D2FF",
+                "active_tab_fg": "#000000",
             },
             "light": {
-                "bg": "#F4F6F9", "top_bg": "#FFFFFF", "card_bg": "#FFFFFF",
-                "canvas_bg": "#EAEAEA", "text": "#222831", "muted": "#666666",
-                "accent": "#00ADB5", "btn_bg": "#E0E0E0", "btn_fg": "#222831",
-                "border": "#DDDDDD"
+                "bg": "#F1F5F9",
+                "top_bg": "#0095E8",
+                "top_fg": "#FFFFFF",
+                "top_sub_fg": "#DDF2FF",
+                "card_bg": "#FFFFFF",
+                "card_border": "#0284C7",
+                "canvas_bg": "#E2E8F0",
+                "text": "#0F172A",
+                "text_secondary": "#475569",
+                "muted": "#0284C7",
+                "accent": "#0284C7",
+                "danger": "#DC2626",
+                "btn_bg": "#E2E8F0",
+                "btn_fg": "#0F172A",
+                "btn_border": "#0284C7",
+                "border": "#CBD5E1",
+                "active_tab_bg": "#0284C7",
+                "active_tab_fg": "#FFFFFF",
             }
         }
+
+        # Load & hold references to Persona 3 image assets
+        self.load_p3_assets()
 
         self.setup_ui()
         self.animator = CanvasAnimationManager(self.canvas, self.root, self.get_current_theme)
         self.reloadFloorMap()
         self.apply_theme()
 
+        # Keyboard shortcuts
+        self.root.bind("<Escape>", lambda e: self.exit_fullscreen())
+        self.root.bind("<F11>", lambda e: self.toggle_fullscreen())
+
     def get_current_theme(self):
         return self.themes["dark"] if self.is_dark else self.themes["light"]
+
+    def load_p3_assets(self):
+        assets_dir = project_root / "assets"
+        self.p3_images = {}
+        file_map = {
+            "badge": "p3_orpheus_badge_small.png",
+            "thumb": "p3_classroom_thumb_small.png",
+            "character": "p3_character_art_dash.png",
+            "thanatos": "p3_thanatos_small.png",
+            "moon_star": "p3_moon_star_small.png",
+        }
+        for key, filename in file_map.items():
+            img_path = assets_dir / filename
+            if img_path.exists():
+                try:
+                    if HAS_PIL:
+                        self.p3_images[key] = ImageTk.PhotoImage(Image.open(img_path))
+                    else:
+                        self.p3_images[key] = tk.PhotoImage(file=str(img_path))
+                except Exception as e:
+                    print(f"Warning loading {filename}: {e}")
 
     def setup_ui(self):
         self.main_container = tk.Frame(self.root)
         self.main_container.pack(fill="both", expand=True)
 
-        # Header Bar
-        self.top_bar = tk.Frame(self.main_container, height=70, highlightthickness=1)
+        # Top Header Bar (Electric Cyan Banner from Reference)
+        self.top_bar = tk.Frame(self.main_container, height=76, highlightthickness=1)
         self.top_bar.pack(fill="x", side="top")
         self.top_bar.pack_propagate(False)
 
-        # Left Header
+        # Left Header: Orpheus / Thanatos Badge & Title
         self.left_box = tk.Frame(self.top_bar)
-        self.left_box.pack(side="left", padx=25)
+        self.left_box.pack(side="left", padx=14)
 
-        self.app_title = tk.Label(self.left_box, text="AC STAT", font=("Segoe UI", 18, "bold"))
-        self.app_title.pack(side="left", padx=(0, 15))
+        if "badge" in self.p3_images:
+            self.badge_label = tk.Label(self.left_box, image=self.p3_images["badge"], bd=1, relief="solid")
+            self.badge_label.pack(side="left", padx=(0, 10))
 
-        # Right Controls
+        self.title_box = tk.Frame(self.left_box)
+        self.title_box.pack(side="left", fill="y", pady=8)
+
+        self.app_title = tk.Label(
+            self.title_box, text="AC STAT",
+            font=("Segoe UI", 18, "bold")
+        )
+        self.app_title.pack(anchor="w")
+
+        self.app_subtitle = tk.Label(
+            self.title_box,
+            text="Marsudirini • AC Control",
+            font=("Segoe UI", 9, "bold")
+        )
+        self.app_subtitle.pack(anchor="w")
+
+        # Center Header: Clean & Minimalist (Toned down text art)
+        self.center_box = tk.Frame(self.top_bar)
+        self.center_box.pack(side="left", expand=True, padx=4)
+
+        self.ticker_top = tk.Label(
+            self.center_box,
+            text="✦ MARSUDIRINI CLIMATE ✦",
+            font=("Segoe UI", 10, "bold")
+        )
+        self.ticker_top.pack(anchor="center")
+
+        self.ticker_sub = tk.Label(
+            self.center_box,
+            text="SEES FACILITY MONITOR",
+            font=("Segoe UI", 8)
+        )
+        self.ticker_sub.pack(anchor="center", pady=(1, 0))
+
+        # Right Header: Classroom Thumbnail & Controls
         self.right_box = tk.Frame(self.top_bar)
-        self.right_box.pack(side="right", padx=25)
+        self.right_box.pack(side="right", padx=14)
 
-        self.btn_theme = tk.Button(
-            self.right_box, text="☀️ Light Mode", font=("Segoe UI", 9, "bold"),
-            bd=0, padx=12, pady=6, cursor="hand2", command=self.toggle_theme
-        )
-        self.btn_theme.pack(side="left", padx=5)
+        if "thumb" in self.p3_images:
+            self.thumb_label = tk.Label(self.right_box, image=self.p3_images["thumb"], bd=1, relief="solid")
+            self.thumb_label.pack(side="left", padx=(0, 10))
 
-        self.btn_fullscreen = tk.Button(
-            self.right_box, text="🗗 Windowed", font=("Segoe UI", 9, "bold"),
-            bd=0, padx=12, pady=6, cursor="hand2", command=self.toggle_fullscreen
+        # 1. Report Button (Quick issue report)
+        self.btn_report = tk.Button(
+            self.right_box, text="⚠ REPORT", font=("Segoe UI", 9, "bold"),
+            bg="#F59E0B", fg="#000000", bd=1, relief="solid",
+            padx=10, pady=4, cursor="hand2", command=lambda: self.openReportDialog()
         )
-        self.btn_fullscreen.pack(side="left", padx=5)
+        self.btn_report.pack(side="left", padx=4)
 
-        self.img_placeholder = tk.Label(
-            self.right_box, text="[ Image Placeholder ]", 
-            font=("Segoe UI", 9, "italic"), bg="#444444", fg="#FFFFFF", padx=10
+        # 2. Admin Panel Button
+        self.btn_admin = tk.Button(
+            self.right_box, text="🛡 ADMIN", font=("Segoe UI", 9, "bold"),
+            bg="#0F172A", fg="#00D2FF", bd=1, relief="solid",
+            padx=10, pady=4, cursor="hand2", command=self.openAdminAuthentication
         )
-        self.img_placeholder.pack(side="left", fill="y", padx=(15, 0), pady=10)
+        self.btn_admin.pack(side="left", padx=4)
+
+        # 3. System / Actions Dropdown Menu
+        self.menu_btn = tk.Menubutton(
+            self.right_box, text="⚙ MENU ▾", font=("Segoe UI", 9, "bold"),
+            bg="#000000", fg="#FFFFFF", bd=1, relief="solid",
+            padx=10, pady=4, cursor="hand2"
+        )
+        self.system_menu = tk.Menu(
+            self.menu_btn, tearoff=0,
+            bg="#0A0F1D", fg="#FFFFFF",
+            activebackground="#00A2FF", activeforeground="#000000",
+            font=("Segoe UI", 9)
+        )
+        self.system_menu.add_command(
+            label="☀️ Toggle Light / Dark Mode",
+            command=self.toggle_theme
+        )
+        self.system_menu.add_command(
+            label="⛶ Toggle Fullscreen (F11)",
+            command=self.toggle_fullscreen
+        )
+        self.system_menu.add_separator()
+        self.system_menu.add_command(
+            label="🛡 Admin Panel",
+            command=self.openAdminAuthentication
+        )
+        self.system_menu.add_command(
+            label="⚠ Report AC Issue",
+            command=lambda: self.openReportDialog()
+        )
+        self.menu_btn["menu"] = self.system_menu
+        self.menu_btn.pack(side="left", padx=4)
 
         # Workspace Area
         self.workspace = tk.Frame(self.main_container)
-        self.workspace.pack(fill="both", expand=True, padx=25, pady=20)
+        self.workspace.pack(fill="both", expand=True, padx=20, pady=(15, 10))
 
+        # Map Area (Left)
         self.map_area = tk.Frame(self.workspace)
-        self.map_area.pack(side="left", fill="both", expand=True, padx=(0, 20))
+        self.map_area.pack(side="left", fill="both", expand=True, padx=(0, 16))
 
-        # Floor Tabs
+        # Floor Navigation Tabs Frame
         self.floor_tabs_frame = tk.Frame(self.map_area)
-        self.floor_tabs_frame.pack(fill="x", pady=(0, 10))
+        self.floor_tabs_frame.pack(fill="x", pady=(0, 12))
 
-        self.btn_floor1 = tk.Button(self.floor_tabs_frame, text="Floor 1", font=("Segoe UI", 10, "bold"), bd=0, padx=15, pady=5, cursor="hand2", command=lambda: self.changeFloor("Floor 1"))
-        self.btn_floor1.pack(side="left", padx=(0, 10))
+        # Persona 3 Reload Styled Floor Command Tabs
+        self.btn_floor1 = tk.Button(
+            self.floor_tabs_frame, text="✦ 01 FLOOR", font=("Segoe UI", 10, "bold"),
+            bd=1, relief="solid", padx=18, pady=6, cursor="hand2",
+            command=lambda: self.changeFloor("Floor 1")
+        )
+        self.btn_floor1.pack(side="left", padx=(0, 8))
 
-        self.btn_floor2 = tk.Button(self.floor_tabs_frame, text="Floor 2", font=("Segoe UI", 10, "bold"), bd=0, padx=15, pady=5, cursor="hand2", command=lambda: self.changeFloor("Floor 2"))
-        self.btn_floor2.pack(side="left", padx=(0, 10))
+        self.btn_floor2 = tk.Button(
+            self.floor_tabs_frame, text="✦ 02 FLOOR", font=("Segoe UI", 10, "bold"),
+            bd=1, relief="solid", padx=18, pady=6, cursor="hand2",
+            command=lambda: self.changeFloor("Floor 2")
+        )
+        self.btn_floor2.pack(side="left", padx=(0, 8))
 
-        self.btn_floor3 = tk.Button(self.floor_tabs_frame, text="Floor 3", font=("Segoe UI", 10, "bold"), bd=0, padx=15, pady=5, cursor="hand2", command=lambda: self.changeFloor("Floor 3"))
-        self.btn_floor3.pack(side="left")
+        self.btn_floor3 = tk.Button(
+            self.floor_tabs_frame, text="✦ 03 FLOOR", font=("Segoe UI", 10, "bold"),
+            bd=1, relief="solid", padx=18, pady=6, cursor="hand2",
+            command=lambda: self.changeFloor("Floor 3")
+        )
+        self.btn_floor3.pack(side="left", padx=(0, 8))
 
-        self.btn_floor4 = tk.Button(self.floor_tabs_frame, text="Floor 4", font=("Segoe UI", 10, "bold"), bd=0, padx=15, pady=5, cursor="hand2", command=lambda: self.changeFloor("Floor 4"))
-        self.btn_floor4.pack(side="left", padx=(10, 0))
+        self.btn_floor4 = tk.Button(
+            self.floor_tabs_frame, text="✦ 04 FLOOR", font=("Segoe UI", 10, "bold"),
+            bd=1, relief="solid", padx=18, pady=6, cursor="hand2",
+            command=lambda: self.changeFloor("Floor 4")
+        )
+        self.btn_floor4.pack(side="left")
 
         # Map Canvas
         self.canvas = tk.Canvas(self.map_area, highlightthickness=1)
         self.canvas.pack(fill="both", expand=True)
 
-        # Preview Side Panel
-        self.preview_card = tk.Frame(self.workspace, width=260, highlightthickness=1)
+        # Right Side Dashboard / Preview Panel
+        self.preview_card = tk.Frame(self.workspace, width=310, highlightthickness=1)
         self.preview_card.pack_propagate(False)
         self.preview_card.pack(side="right", fill="y")
 
         self.setup_dashboard_card()
 
-        # Footer
+        # Footer Ticker Bar
         self.footer = tk.Label(
-            self.main_container, 
-            text="Shortcuts: [ESC] Exit Fullscreen  |  [F11] Toggle Fullscreen", 
+            self.main_container,
+            text="[ESC] Windowed  |  [F11] Fullscreen  |  SEES HVAC CLIMATE PROTOCOL ACTIVE  •  MARSUDIRINI ONLINE",
             font=("Segoe UI", 9)
         )
-        self.footer.pack(side="bottom", anchor="w", padx=25, pady=8)
+        self.footer.pack(side="bottom", anchor="w", padx=20, pady=6)
 
     def setup_dashboard_card(self):
-        self.dashboard_title = tk.Label(self.preview_card, text="FLOOR SUMMARY", font=("Segoe UI", 10, "bold"))
-        self.dashboard_title.pack(anchor="w", padx=20, pady=(20, 5))
-        self.dashboard_floor = tk.Label(self.preview_card, text="", font=("Segoe UI", 13, "bold"))
-        self.dashboard_floor.pack(anchor="w", padx=20, pady=(0, 8))
-        self.dashboard_canvas = tk.Canvas(self.preview_card, width=280, height=560, highlightthickness=0)
-        self.dashboard_canvas.pack(fill="both", expand=True, padx=5, pady=5)
+        # Header Box
+        self.dash_header_frame = tk.Frame(self.preview_card)
+        self.dash_header_frame.pack(fill="x", padx=16, pady=(14, 4))
+
+        self.dashboard_title = tk.Label(
+            self.dash_header_frame, text="FLOOR SUMMARY",
+            font=("Segoe UI", 11, "bold")
+        )
+        self.dashboard_title.pack(anchor="w")
+
+        self.dashboard_sub = tk.Label(
+            self.dash_header_frame, text="遊びは終わりだ // 世界の終わり",
+            font=("Segoe UI", 8, "italic")
+        )
+        self.dashboard_sub.pack(anchor="w", pady=(1, 0))
+
+        self.dashboard_floor = tk.Label(
+            self.dash_header_frame, text="",
+            font=("Segoe UI", 13, "bold")
+        )
+        self.dashboard_floor.pack(anchor="w", pady=(4, 0))
+
+        # Dashboard Canvas for Donut, Gauges, and Art
+        self.dashboard_canvas = tk.Canvas(self.preview_card, highlightthickness=0)
+        self.dashboard_canvas.pack(fill="both", expand=True, padx=4, pady=(2, 6))
 
     def reloadFloorMap(self):
         self.canvas.delete("all")
@@ -203,7 +377,7 @@ class ACStatFullScreenApp:
             hoverCallback=self.onRoomHover,
             clickCallback=self.onRoomClick
         )
-    #change floor animation
+
     def changeFloor(self, targetFloor):
         if self.animator.isAnimating:
             return
@@ -213,9 +387,8 @@ class ACStatFullScreenApp:
             return
 
         if self.current_floor == targetFloor:
-
             return
-        
+
         self.changeFloorAfterRoom(targetFloor)
 
     def changeFloorAfterRoom(self, targetFloor):
@@ -237,14 +410,14 @@ class ACStatFullScreenApp:
             clickCallback=self.onRoomClick,
             onComplete=self.updateDashboard
         )
-    #room hover effect
+
     def onRoomHover(self, roomData, entering):
         self.animator.hoverZoom(roomData, entering)
         if entering:
             self.updatePreview(roomData)
         else:
             self.clearPreview()
-    #room click effect
+
     def onRoomClick(self, roomData):
         self.selectedRoom = roomData
         self.animator.zoomIntoRoom(roomData, onCompleteCallback=self.openRoomMenu)
@@ -254,77 +427,301 @@ class ACStatFullScreenApp:
             roomData,
             backCallback=self.returnToCurrentFloor,
             editCallback=lambda: self.openEditAuthentication(roomData),
+            reportCallback=lambda r, ac=None: self.openReportDialog(r, ac),
         )
 
-    def openEditAuthentication(self, roomData):
+    def openReportDialog(self, roomData=None, defaultAc=None):
+        """Opens a Persona 3 Reload styled Incident Reporting modal."""
+        theme = self.get_current_theme()
         dialog = tk.Toplevel(self.root)
-        dialog.title(f"Edit {roomData['name']}")
+        dialog.title("SEES INCIDENT REPORT // MARSUDIRINI AC")
         dialog.transient(self.root)
         dialog.grab_set()
         dialog.resizable(False, False)
+        dialog.configure(bg=theme["card_bg"])
+
+        # Header
+        header = tk.Frame(dialog, bg=theme["top_bg"], height=42)
+        header.pack(fill="x")
+        tk.Label(
+            header, text="✦ SEES INCIDENT REPORT // MARSUDIRINI AC FACILITY",
+            font=("Segoe UI", 11, "bold"), bg=theme["top_bg"], fg=theme["top_fg"]
+        ).pack(side="left", padx=16, pady=10)
+
+        body = tk.Frame(dialog, bg=theme["card_bg"])
+        body.pack(padx=28, pady=20)
+
+        # Collect all classroom names
+        all_room_names = []
+        for rooms in self.floorsData.values():
+            for r in rooms:
+                if r.get("name") and r["name"].lower() != "coming soon":
+                    if r["name"] not in all_room_names:
+                        all_room_names.append(r["name"])
+
+        init_room = roomData["name"] if roomData and roomData.get("name") else (all_room_names[0] if all_room_names else "")
+
+        entry_bg = "#111827" if self.is_dark else "#FFFFFF"
+
+        # 1. Room Name
+        tk.Label(body, text="LOCATION / ROOM:", font=("Segoe UI", 9, "bold"), bg=theme["card_bg"], fg=theme["muted"]).grid(row=0, column=0, sticky="w", pady=6)
+        room_var = tk.StringVar(value=init_room)
+        room_combo = ttk.Combobox(body, textvariable=room_var, values=all_room_names, width=28, state="readonly")
+        room_combo.grid(row=0, column=1, pady=6, padx=(10, 0))
+
+        # 2. AC Unit
+        init_ac = defaultAc or "All AC Units"
+        tk.Label(body, text="AC UNIT ID:", font=("Segoe UI", 9, "bold"), bg=theme["card_bg"], fg=theme["muted"]).grid(row=1, column=0, sticky="w", pady=6)
+        ac_var = tk.StringVar(value=init_ac)
+        ac_combo = ttk.Combobox(body, textvariable=ac_var, values=["All AC Units", "AC-01", "AC-02", "AC-03"], width=28)
+        ac_combo.grid(row=1, column=1, pady=6, padx=(10, 0))
+
+        # 3. Issue Category
+        tk.Label(body, text="ISSUE CATEGORY:", font=("Segoe UI", 9, "bold"), bg=theme["card_bg"], fg=theme["muted"]).grid(row=2, column=0, sticky="w", pady=6)
+        issues = [
+            "AC Not Cold / Kurang Dingin",
+            "Water Leaking / Bocor Air",
+            "Remote Missing / Rusak",
+            "Strange Noise / Suara Bising",
+            "Power Failure / Mati Total",
+            "Foul Smell / Bau Kurang Sedap",
+            "Other / Masalah Lain"
+        ]
+        issue_var = tk.StringVar(value=issues[0])
+        issue_combo = ttk.Combobox(body, textvariable=issue_var, values=issues, width=28, state="readonly")
+        issue_combo.grid(row=2, column=1, pady=6, padx=(10, 0))
+
+        # 4. Reporter Name
+        tk.Label(body, text="REPORTER NAME:", font=("Segoe UI", 9, "bold"), bg=theme["card_bg"], fg=theme["muted"]).grid(row=3, column=0, sticky="w", pady=6)
+        reporter_entry = tk.Entry(body, width=30, font=("Segoe UI", 10), bg=entry_bg, fg=theme["text"], insertbackground=theme["accent"])
+        reporter_entry.insert(0, "Student / Staff")
+        reporter_entry.grid(row=3, column=1, pady=6, padx=(10, 0))
+
+        # 5. Description
+        tk.Label(body, text="DESCRIPTION / NOTES:", font=("Segoe UI", 9, "bold"), bg=theme["card_bg"], fg=theme["muted"]).grid(row=4, column=0, sticky="nw", pady=6)
+        desc_text = tk.Text(body, width=30, height=4, font=("Segoe UI", 9), bg=entry_bg, fg=theme["text"], insertbackground=theme["accent"])
+        desc_text.grid(row=4, column=1, pady=6, padx=(10, 0))
+
+        status_lbl = tk.Label(body, text="", font=("Segoe UI", 9, "bold"), bg=theme["card_bg"], fg=theme["accent"])
+        status_lbl.grid(row=5, column=0, columnspan=2, pady=4)
+
+        def submit():
+            r_name = room_var.get()
+            a_id = ac_var.get()
+            i_type = issue_var.get()
+            rep_name = reporter_entry.get().strip() or "Anonymous"
+            desc = desc_text.get("1.0", tk.END).strip()
+
+            if not desc:
+                status_lbl.configure(text="Please enter description details.", fg=theme["danger"])
+                return
+
+            try:
+                ticket_id = self.dataProvider.createReport(r_name, a_id, i_type, desc, rep_name)
+                status_lbl.configure(text=f"REPORT LOGGED! TICKET #{ticket_id}", fg="#00FFCC")
+                dialog.after(900, dialog.destroy)
+            except Exception as ex:
+                status_lbl.configure(text=f"Error saving report: {ex}", fg=theme["danger"])
+
+        btn_box = tk.Frame(body, bg=theme["card_bg"])
+        btn_box.grid(row=6, column=0, columnspan=2, pady=(12, 0))
+
+        tk.Button(
+            btn_box, text="✦ SUBMIT REPORT", command=submit,
+            bg=theme["accent"], fg="#000000" if self.is_dark else "#FFFFFF",
+            font=("Segoe UI", 9, "bold"), bd=1, relief="solid", padx=16, pady=6, cursor="hand2"
+        ).pack(side="left", padx=(0, 10))
+
+        tk.Button(
+            btn_box, text="CANCEL", command=dialog.destroy,
+            bg=theme["btn_bg"], fg=theme["btn_fg"],
+            font=("Segoe UI", 9), bd=1, relief="solid", padx=14, pady=6, cursor="hand2"
+        ).pack(side="left")
+
+    def openAdminAuthentication(self):
+        """Authenticates admin and launches AdminPanelUI."""
+        theme = self.get_current_theme()
+        dialog = tk.Toplevel(self.root)
+        dialog.title("ADMIN AUTHENTICATION // SEES CENTRAL")
+        dialog.transient(self.root)
+        dialog.grab_set()
+        dialog.resizable(False, False)
+        dialog.configure(bg=theme["card_bg"])
+
+        header = tk.Frame(dialog, bg=theme["top_bg"], height=36)
+        header.pack(fill="x")
+        tk.Label(
+            header, text="✦ SEES ADMIN ACCESS VERIFICATION",
+            font=("Segoe UI", 10, "bold"), bg=theme["top_bg"], fg=theme["top_fg"]
+        ).pack(side="left", padx=16, pady=8)
+
+        body = tk.Frame(dialog, bg=theme["card_bg"])
+        body.pack(padx=28, pady=20)
 
         tk.Label(
-            dialog, text=f"Enter password for {roomData['name']}",
-            font=("Segoe UI", 11, "bold")
-        ).pack(padx=24, pady=(20, 10))
-        password_entry = tk.Entry(dialog, show="*", width=28)
-        password_entry.pack(padx=24, pady=5)
-        password_entry.focus_set()
-        error_label = tk.Label(dialog, text="", fg="#D92323")
-        error_label.pack(padx=24, pady=(0, 8))
+            body, text="Enter administrator access key (default: admin123):",
+            font=("Segoe UI", 10), bg=theme["card_bg"], fg=theme["text"]
+        ).pack(anchor="w", pady=(0, 8))
 
-        def authenticate():
-            if self.dataProvider.authenticateRoom(
-                roomData["name"], password_entry.get()
-            ):
+        password_entry = tk.Entry(
+            body, show="*", width=30, font=("Segoe UI", 10),
+            bg="#111827" if self.is_dark else "#FFFFFF",
+            fg=theme["text"], insertbackground=theme["accent"]
+        )
+        password_entry.pack(fill="x", pady=4)
+        password_entry.focus_set()
+
+        error_label = tk.Label(body, text="", fg=theme["danger"], bg=theme["card_bg"], font=("Segoe UI", 9))
+        error_label.pack(pady=4)
+
+        def verify():
+            pwd = password_entry.get()
+            if self.dataProvider.authenticateAdmin(pwd):
                 dialog.destroy()
-                self.openRoomEditor(roomData)
+                AdminPanelUI(self.root, self.dataProvider)
             else:
-                error_label.configure(text="Incorrect password")
+                error_label.configure(text="ACCESS DENIED: Invalid Admin Passkey")
                 password_entry.select_range(0, tk.END)
                 password_entry.focus_set()
 
-        tk.Button(
-            dialog, text="Continue", command=authenticate,
-            bg="#00ADB5", fg="#FFFFFF", bd=0, padx=16, pady=6,
-        ).pack(pady=(0, 20))
-        password_entry.bind("<Return>", lambda event: authenticate())
+        btn_box = tk.Frame(body, bg=theme["card_bg"])
+        btn_box.pack(fill="x", pady=(10, 0))
 
-    def openRoomEditor(self, roomData):
+        tk.Button(
+            btn_box, text="UNLOCK ADMIN PANEL", command=verify,
+            bg=theme["accent"], fg="#000000" if self.is_dark else "#FFFFFF",
+            font=("Segoe UI", 9, "bold"), bd=1, relief="solid", padx=16, pady=6, cursor="hand2"
+        ).pack(side="left", padx=(0, 10))
+
+        tk.Button(
+            btn_box, text="CANCEL", command=dialog.destroy,
+            bg=theme["btn_bg"], fg=theme["btn_fg"],
+            font=("Segoe UI", 9), bd=1, relief="solid", padx=14, pady=6, cursor="hand2"
+        ).pack(side="left")
+
+        password_entry.bind("<Return>", lambda event: verify())
+
+    def openEditAuthentication(self, roomData):
+        theme = self.get_current_theme()
         dialog = tk.Toplevel(self.root)
-        dialog.title(f"Update {roomData['name']}")
+        dialog.title(f"AUTHENTICATION // {roomData['name']}")
         dialog.transient(self.root)
         dialog.grab_set()
         dialog.resizable(False, False)
+        dialog.configure(bg=theme["card_bg"])
+
+        # Styled header
+        header = tk.Frame(dialog, bg=theme["top_bg"], height=36)
+        header.pack(fill="x")
+        tk.Label(
+            header, text=f"SEES SECURITY CHECK // {roomData['name']}",
+            font=("Segoe UI", 10, "bold"), bg=theme["top_bg"], fg=theme["top_fg"]
+        ).pack(side="left", padx=16, pady=8)
+
+        body = tk.Frame(dialog, bg=theme["card_bg"])
+        body.pack(padx=28, pady=20)
+
+        tk.Label(
+            body, text=f"Enter security passkey for {roomData['name']}:",
+            font=("Segoe UI", 10), bg=theme["card_bg"], fg=theme["text"]
+        ).pack(anchor="w", pady=(0, 8))
+
+        password_entry = tk.Entry(
+            body, show="*", width=30, font=("Segoe UI", 10),
+            bg="#111827" if self.is_dark else "#FFFFFF",
+            fg=theme["text"], insertbackground=theme["accent"]
+        )
+        password_entry.pack(fill="x", pady=4)
+        password_entry.focus_set()
+
+        error_label = tk.Label(body, text="", fg=theme["danger"], bg=theme["card_bg"], font=("Segoe UI", 9))
+        error_label.pack(pady=4)
+
+        def authenticate():
+            if self.dataProvider.authenticateRoom(roomData["name"], password_entry.get()):
+                dialog.destroy()
+                self.openRoomEditor(roomData)
+            else:
+                error_label.configure(text="ACCESS DENIED: Incorrect passkey")
+                password_entry.select_range(0, tk.END)
+                password_entry.focus_set()
+
+        btn_box = tk.Frame(body, bg=theme["card_bg"])
+        btn_box.pack(fill="x", pady=(10, 0))
+
+        tk.Button(
+            btn_box, text="VERIFY & CONTINUE", command=authenticate,
+            bg=theme["accent"], fg="#000000" if self.is_dark else "#FFFFFF",
+            font=("Segoe UI", 9, "bold"), bd=1, relief="solid", padx=16, pady=6, cursor="hand2"
+        ).pack(side="left", padx=(0, 10))
+
+        tk.Button(
+            btn_box, text="CANCEL", command=dialog.destroy,
+            bg=theme["btn_bg"], fg=theme["btn_fg"],
+            font=("Segoe UI", 9), bd=1, relief="solid", padx=14, pady=6, cursor="hand2"
+        ).pack(side="left")
+
+        password_entry.bind("<Return>", lambda event: authenticate())
+
+    def openRoomEditor(self, roomData):
+        theme = self.get_current_theme()
+        dialog = tk.Toplevel(self.root)
+        dialog.title(f"EDIT EQUIPMENT // {roomData['name']}")
+        dialog.transient(self.root)
+        dialog.grab_set()
+        dialog.resizable(False, False)
+        dialog.configure(bg=theme["card_bg"])
+
+        # Styled header
+        header = tk.Frame(dialog, bg=theme["top_bg"], height=36)
+        header.pack(fill="x")
+        tk.Label(
+            header, text=f"✦ SEES HVAC SYSTEM OVERRIDE // {roomData['name']}",
+            font=("Segoe UI", 10, "bold"), bg=theme["top_bg"], fg=theme["top_fg"]
+        ).pack(side="left", padx=16, pady=8)
 
         fields = (
-            ("Temperature", "temp"),
-            ("AC count", "jumlahAc"),
-            ("AC brand", "merkAc"),
-            ("Remote count", "remoteCount"),
-            ("Remote brand", "remoteBrand"),
+            ("Wall Temperature (°C)", "temp"),
+            ("AC Units Count", "jumlahAc"),
+            ("AC Brand / Model", "merkAc"),
+            ("Remote Count", "remoteCount"),
+            ("Remote Brand", "remoteBrand"),
         )
         entries = {}
-        form = tk.Frame(dialog)
-        form.pack(padx=24, pady=18)
+        form = tk.Frame(dialog, bg=theme["card_bg"])
+        form.pack(padx=28, pady=18)
+
+        entry_bg = "#111827" if self.is_dark else "#FFFFFF"
+
         for row, (label, key) in enumerate(fields):
-            tk.Label(form, text=label, anchor="w", width=16).grid(
-                row=row, column=0, padx=(0, 10), pady=5
+            tk.Label(
+                form, text=label, anchor="w", width=22,
+                font=("Segoe UI", 9, "bold"), bg=theme["card_bg"], fg=theme["muted"]
+            ).grid(row=row, column=0, padx=(0, 12), pady=6, sticky="w")
+
+            entry = tk.Entry(
+                form, width=28, font=("Segoe UI", 10),
+                bg=entry_bg, fg=theme["text"], insertbackground=theme["accent"]
             )
-            entry = tk.Entry(form, width=30)
             entry.insert(0, "" if roomData.get(key) is None else str(roomData[key]))
-            entry.grid(row=row, column=1, pady=5)
+            entry.grid(row=row, column=1, pady=6)
             entries[key] = entry
 
         power_var = tk.StringVar(value=roomData.get("acPower") or "ON")
-        tk.Label(form, text="AC power", anchor="w", width=16).grid(
-            row=len(fields), column=0, padx=(0, 10), pady=5
+        tk.Label(
+            form, text="AC Power State", anchor="w", width=22,
+            font=("Segoe UI", 9, "bold"), bg=theme["card_bg"], fg=theme["muted"]
+        ).grid(row=len(fields), column=0, padx=(0, 12), pady=6, sticky="w")
+
+        pwr_menu = tk.OptionMenu(form, power_var, "ON", "OFF")
+        pwr_menu.configure(
+            bg=entry_bg, fg=theme["text"], activebackground=theme["accent"],
+            font=("Segoe UI", 9, "bold"), bd=1, relief="solid"
         )
-        tk.OptionMenu(form, power_var, "ON", "OFF").grid(
-            row=len(fields), column=1, sticky="w", pady=5
-        )
-        error_label = tk.Label(dialog, text="", fg="#D92323")
-        error_label.pack()
+        pwr_menu.grid(row=len(fields), column=1, sticky="w", pady=6)
+
+        error_label = tk.Label(dialog, text="", fg=theme["danger"], bg=theme["card_bg"], font=("Segoe UI", 9))
+        error_label.pack(pady=4)
 
         def save_changes():
             try:
@@ -339,7 +736,7 @@ class ACStatFullScreenApp:
                 editor = self.dataProvider.getRoomEditor(roomData["name"])
                 editor.update(**values)
             except (ValueError, PermissionError) as error:
-                error_label.configure(text=str(error) or "Enter valid values")
+                error_label.configure(text=str(error) or "Invalid input values")
                 return
 
             updated = self.dataProvider.getRoom(roomData["name"])
@@ -361,17 +758,24 @@ class ACStatFullScreenApp:
                 roomData,
                 backCallback=self.returnToCurrentFloor,
                 editCallback=lambda: self.openEditAuthentication(roomData),
+                reportCallback=lambda r, ac=None: self.openReportDialog(r, ac),
             )
 
+        btn_box = tk.Frame(dialog, bg=theme["card_bg"])
+        btn_box.pack(fill="x", padx=28, pady=(8, 20))
+
         tk.Button(
-            dialog, text="Save", command=save_changes,
-            bg="#00ADB5", fg="#FFFFFF", bd=0, padx=18, pady=6,
-        ).pack(side="left", padx=(24, 8), pady=(4, 20))
+            btn_box, text="SAVE CONFIGURATION", command=save_changes,
+            bg=theme["accent"], fg="#000000" if self.is_dark else "#FFFFFF",
+            font=("Segoe UI", 9, "bold"), bd=1, relief="solid", padx=16, pady=6, cursor="hand2"
+        ).pack(side="left", padx=(0, 10))
+
         tk.Button(
-            dialog, text="Cancel", command=dialog.destroy,
-            bd=0, padx=18, pady=6,
-        ).pack(side="left", padx=(0, 24), pady=(4, 20))
-    #room menu back button
+            btn_box, text="CANCEL", command=dialog.destroy,
+            bg=theme["btn_bg"], fg=theme["btn_fg"],
+            font=("Segoe UI", 9), bd=1, relief="solid", padx=14, pady=6, cursor="hand2"
+        ).pack(side="left")
+
     def returnToCurrentFloor(self):
         if self.animator.isAnimating:
             return
@@ -386,120 +790,213 @@ class ACStatFullScreenApp:
     def updateDashboard(self):
         theme = self.get_current_theme()
         floor_data = self.floorsData.get(self.current_floor, [])
-        self.dashboard_floor.configure(text=self.current_floor)
+
+        # Update Floor Indicator in Dashboard and Header
+        floor_num = self.current_floor.split()[-1]
+        self.dashboard_floor.configure(text=f"{self.current_floor.upper()}  [*0{floor_num}]")
+
         self.dashboard_canvas.delete("all")
+        canvas_w = max(self.dashboard_canvas.winfo_width(), 300)
 
         if self.current_floor == "Floor 4":
             self.dashboard_canvas.create_text(
-                125, 125, text="Coming soon",
-                fill=theme["muted"], font=("Segoe UI", 16, "bold")
+                canvas_w / 2, 100, text="// MARSUDIRINI LEVEL 4 //\nACCESS RESTRICTED",
+                fill=theme["muted"], font=("Segoe UI", 12, "bold"), justify="center"
             )
+            if "character" in self.p3_images:
+                self.dashboard_canvas.create_image(canvas_w / 2, 240, image=self.p3_images["character"])
             return
+
+        # Metrics calculation: Focus on classroom / AC-equipped rooms
+        ac_rooms = [r for r in floor_data if r.get("hasStats", True)]
+        target_rooms = ac_rooms if ac_rooms else floor_data
 
         status_counts = {"ON": 0, "OFF": 0, "NO DATA": 0}
         temperatures = []
         ac_count = 0
 
-        for room in floor_data:
+        for room in target_rooms:
             temperature = room.get("temp")
-            has_stats = room.get("hasStats", True)
             power = str(room.get("acPower") or "").upper()
 
-            if not has_stats or power not in {"ON", "OFF"}:
-                status_counts["NO DATA"] += 1
-            elif power == "OFF":
+            if power == "OFF":
                 status_counts["OFF"] += 1
-            else:
+            elif power == "ON":
                 status_counts["ON"] += 1
+            else:
+                status_counts["NO DATA"] += 1
 
-            if has_stats and temperature is not None:
+            if temperature is not None:
                 temperatures.append(temperature)
 
-            if has_stats:
-                ac_count += room.get("jumlahAc") or 0
+            ac_count += room.get("jumlahAc") or 0
 
-        average_temperature = (
-            f"{sum(temperatures) / len(temperatures):.1f} C"
-            if temperatures else "--"
-        )
-        canvas_width = max(self.dashboard_canvas.winfo_width(), 250)
-        center_x = canvas_width / 2
-        center_y = 125
-        radius = 72
+        avg_temp_val = (sum(temperatures) / len(temperatures)) if temperatures else 0
+        avg_temp_str = f"{avg_temp_val:.1f}°C" if temperatures else "--°C"
+
+        # 1. Donut Chart (P3 Status Arc Gauge with 360 full circle fix!)
+        center_x = canvas_w / 2
+        center_y = 65
+        radius = 48
         total = sum(status_counts.values())
-        colors = {"ON": "#00ADB5", "OFF": "#D92323", "NO DATA": "#757575"}
 
-        if total:
-            start_angle = 90
-            for label, count in status_counts.items():
-                if not count:
-                    continue
-                extent = 360 * count / total
-                self.dashboard_canvas.create_arc(
+        color_map = {
+            "ON": "#00D2FF",
+            "OFF": "#FF2A42",
+            "NO DATA": "#475569"
+        }
+
+        if total > 0:
+            active_slices = [(lbl, cnt) for lbl, cnt in status_counts.items() if cnt > 0]
+            if len(active_slices) == 1:
+                # All rooms are in one single state (e.g. ALL ON!)
+                single_label, single_count = active_slices[0]
+                self.dashboard_canvas.create_oval(
                     center_x - radius, center_y - radius,
                     center_x + radius, center_y + radius,
-                    start=start_angle, extent=-extent,
-                    fill=colors[label], outline=theme["card_bg"], width=2,
+                    fill=color_map[single_label], outline=theme["card_bg"], width=2
                 )
-                start_angle -= extent
+            else:
+                start_angle = 90
+                for label, count in status_counts.items():
+                    if not count:
+                        continue
+                    extent = min(359.9, 360.0 * count / total)
+                    self.dashboard_canvas.create_arc(
+                        center_x - radius, center_y - radius,
+                        center_x + radius, center_y + radius,
+                        start=start_angle, extent=-extent,
+                        fill=color_map[label], outline=theme["card_bg"], width=2
+                    )
+                    start_angle -= extent
+
+            # Inner cutout circle for donut
             self.dashboard_canvas.create_oval(
-                center_x - 35, center_y - 35,
-                center_x + 35, center_y + 35,
+                center_x - 26, center_y - 26,
+                center_x + 26, center_y + 26,
                 fill=theme["card_bg"], outline=theme["card_bg"],
             )
+
+            on_count = status_counts["ON"]
+            if on_count == total and total > 0:
+                self.dashboard_canvas.create_text(
+                    center_x, center_y - 5, text="100%",
+                    fill="#00FFCC", font=("Segoe UI", 12, "bold"),
+                )
+                self.dashboard_canvas.create_text(
+                    center_x, center_y + 9, text="ALL ON",
+                    fill="#00FFCC", font=("Segoe UI", 7, "bold"),
+                )
+            else:
+                self.dashboard_canvas.create_text(
+                    center_x, center_y - 4, text=f"{on_count}/{total}",
+                    fill=theme["text"], font=("Segoe UI", 11, "bold"),
+                )
+                self.dashboard_canvas.create_text(
+                    center_x, center_y + 10, text="ACTIVE",
+                    fill=theme["muted"], font=("Segoe UI", 6, "bold"),
+                )
+
+        # Donut Legend
+        legend_y = 126
+        legend_items = [
+            ("ON", status_counts["ON"], "#00D2FF"),
+            ("OFF", status_counts["OFF"], "#FF2A42"),
+            ("NONE", status_counts["NO DATA"], "#475569"),
+        ]
+        spacing = (canvas_w - 40) / 3
+        for i, (l_name, l_val, l_col) in enumerate(legend_items):
+            lx = 24 + i * spacing
+            self.dashboard_canvas.create_rectangle(lx, legend_y, lx + 10, legend_y + 10, fill=l_col, outline="")
             self.dashboard_canvas.create_text(
-                center_x, center_y, text=str(total),
-                fill=theme["text"], font=("Segoe UI", 16, "bold"),
-            )
-        else:
-            self.dashboard_canvas.create_text(
-                center_x, center_y, text="No room data",
-                fill=theme["muted"], font=("Segoe UI", 11),
+                lx + 16, legend_y + 5,
+                anchor="w", text=f"{l_name}: {l_val}",
+                fill=theme["text"], font=("Segoe UI", 8, "bold")
             )
 
-        legend_y = 220
-        for index, (label, count) in enumerate(status_counts.items()):
-            y = legend_y + index * 26
+        # 2. Glowing Cyan Progress Bars
+        bar_x1 = 20
+        bar_x2 = canvas_w - 20
+        bar_w = bar_x2 - bar_x1
+
+        def draw_progress_meter(y_top, label_text, val_text, ratio, accent="#00D2FF"):
+            self.dashboard_canvas.create_text(
+                bar_x1, y_top,
+                anchor="w", text=label_text,
+                fill=theme["muted"], font=("Segoe UI", 8, "bold")
+            )
+            self.dashboard_canvas.create_text(
+                bar_x2, y_top,
+                anchor="e", text=val_text,
+                fill=theme["text"], font=("Segoe UI", 9, "bold")
+            )
+            # Background pill bar
+            py = y_top + 14
+            ph = 8
             self.dashboard_canvas.create_rectangle(
-                28, y - 7, 40, y + 5, fill=colors[label], outline=colors[label]
+                bar_x1, py, bar_x2, py + ph,
+                fill="#162235" if self.is_dark else "#CBD5E1", outline="", width=0
             )
-            self.dashboard_canvas.create_text(
-                50, y - 1, text=f"{label.title()}  {count}", anchor="w",
-                fill=theme["text"], font=("Segoe UI", 10)
+            # Filled glowing pill
+            fill_len = max(4, min(bar_w, bar_w * ratio))
+            self.dashboard_canvas.create_rectangle(
+                bar_x1, py, bar_x1 + fill_len, py + ph,
+                fill=accent, outline=""
             )
 
+        # Metric 1: Average Temperature (Scale 18°C - 30°C)
+        temp_ratio = max(0.0, min(1.0, (avg_temp_val - 18) / 12)) if avg_temp_val else 0.0
+        draw_progress_meter(148, "AVG TEMPERATURE", avg_temp_str, temp_ratio, "#00D2FF")
+
+        # Metric 2: Active AC Units Ratio
+        active_ratio = (status_counts["ON"] / total) if total else 0.0
+        draw_progress_meter(178, "ACTIVE POWER RATIO", f"{status_counts['ON']} / {total}", active_ratio, "#38BDF8")
+
+        # Metric 3: Total AC units
+        draw_progress_meter(208, "TOTAL AC UNITS", f"{ac_count} UNITS", min(1.0, ac_count / 24), "#00FFCC")
+
+        # 3. Persona 3 Reload Character Art Card
+        art_y = 296
+        if "character" in self.p3_images:
+            self.dashboard_canvas.create_image(center_x, art_y, image=self.p3_images["character"])
+
+        # 4. Telemetry Lore Card (Bottom section from reference image)
+        card_y = 390
         self.dashboard_canvas.create_text(
-            28, 320, text=f"Rooms with data     {len(temperatures)}",
-            anchor="w", fill=theme["text"], font=("Segoe UI", 10)
+            center_x, card_y,
+            text="✦  001   013   717   P3R   100   651   111   FES  ✦",
+            fill="#38BDF8", font=("Segoe UI", 7, "bold"), anchor="center"
         )
         self.dashboard_canvas.create_text(
-            28, 348, text=f"Total AC units       {ac_count}",
-            anchor="w", fill=theme["text"], font=("Segoe UI", 10)
+            center_x, card_y + 16,
+            text="END OF THE WORLD",
+            fill="#FFFFFF", font=("Segoe UI", 10, "bold"), anchor="center"
         )
         self.dashboard_canvas.create_text(
-            28, 376, text=f"Average temperature  {average_temperature}",
-            anchor="w", fill=theme["text"], font=("Segoe UI", 10)
+            center_x, card_y + 30,
+            text="- MARSUDIRINI AC PROTOCOL -",
+            fill="#64748B", font=("Segoe UI", 7, "bold"), anchor="center"
         )
 
-    def drawArrow(self, canvas, x1, y1, x2, y2, arrow_Angle, color, width=2):
-        #angles
-        x3 = x2 - arrow_length * math.cos(angle - arrow_Angle)
-        y3 = y2 - arrow_length * math.sin(angle - arrow_Angle)
-        x4 = x2 - arrow_length * math.cos(angle + arrow_Angle)
-        y4 = y2 - arrow_length * math.sin(angle + arrow_Angle)
+        # Styled Box: JUDGEMENT / THE COMEDY IS OVER
+        box_y1 = card_y + 44
+        box_y2 = box_y1 + 34
+        self.dashboard_canvas.create_rectangle(
+            bar_x1, box_y1, bar_x2, box_y2,
+            fill="#060C16" if self.is_dark else "#F1F5F9",
+            outline="#00D2FF", width=1
+        )
+        self.dashboard_canvas.create_text(
+            bar_x1 + 10, (box_y1 + box_y2) / 2,
+            anchor="w", text="JUDGEMENT  •  THE COMEDY IS OVER",
+            fill=theme["text"], font=("Segoe UI", 8, "bold")
+        )
+        self.dashboard_canvas.create_text(
+            bar_x2 - 10, (box_y1 + box_y2) / 2,
+            anchor="e", text="SEES",
+            fill="#00D2FF", font=("Segoe UI", 8, "bold")
+        )
 
-        canvas.createSquareLine(x1, y1, x2, y2, color=color, width=width)
-        # Calculate the angle of the line
-        import math
-        angle = math.atan2(y2 - y1, x2 - x1)
-        # Length of the arrowhead lines
-        arrow_length = 10
-        # Calculate the points for the arrowhead
-
-
-        # Draw the arrowhead
-        canvas.create_polygon(x2, y2, x3, y3, x4, y4, fill=color)
-    #Theme application (would add more later)
     def apply_theme(self):
         t = self.get_current_theme()
 
@@ -508,54 +1005,94 @@ class ACStatFullScreenApp:
         self.workspace.configure(bg=t["bg"])
         self.map_area.configure(bg=t["bg"])
         self.floor_tabs_frame.configure(bg=t["bg"])
-        
-        self.top_bar.configure(bg=t["top_bg"], highlightbackground=t["border"])
+
+        self.top_bar.configure(bg=t["top_bg"], highlightbackground="#000000")
         self.left_box.configure(bg=t["top_bg"])
+        self.title_box.configure(bg=t["top_bg"])
+        self.center_box.configure(bg=t["top_bg"])
         self.right_box.configure(bg=t["top_bg"])
 
-        self.canvas.configure(bg=t["canvas_bg"], highlightbackground=t["border"])
-        self.preview_card.configure(bg=t["card_bg"], highlightbackground=t["border"])
+        if hasattr(self, "badge_label"):
+            self.badge_label.configure(bg=t["top_bg"])
+        if hasattr(self, "thumb_label"):
+            self.thumb_label.configure(bg=t["top_bg"])
 
-        self.app_title.configure(bg=t["top_bg"], fg=t["accent"])
+        self.canvas.configure(bg=t["canvas_bg"], highlightbackground=t["card_border"])
+        self.preview_card.configure(bg=t["card_bg"], highlightbackground=t["card_border"])
+        self.dash_header_frame.configure(bg=t["card_bg"])
+
+        self.app_title.configure(bg=t["top_bg"], fg=t["top_fg"])
+        self.app_subtitle.configure(bg=t["top_bg"], fg=t["top_sub_fg"])
+        self.ticker_top.configure(bg=t["top_bg"], fg=t["top_fg"])
+        self.ticker_sub.configure(bg=t["top_bg"], fg=t["top_sub_fg"])
+
         self.footer.configure(bg=t["bg"], fg=t["muted"])
 
-        self.dashboard_title.configure(bg=t["card_bg"], fg=t["muted"])
-        self.dashboard_floor.configure(bg=t["card_bg"], fg=t["text"])
+        self.dashboard_title.configure(bg=t["card_bg"], fg=t["text"])
+        self.dashboard_sub.configure(bg=t["card_bg"], fg=t["muted"])
+        self.dashboard_floor.configure(bg=t["card_bg"], fg=t["accent"])
         self.dashboard_canvas.configure(bg=t["card_bg"])
 
-        self.btn_theme.configure(text="☀️ Light Mode" if self.is_dark else "🌙 Dark Mode", bg=t["btn_bg"], fg=t["btn_fg"])
-        self.btn_fullscreen.configure(text="🗗 Windowed" if self.root.attributes("-fullscreen") else "🗖 Fullscreen", bg=t["btn_bg"], fg=t["btn_fg"])
-        
-        self.btn_floor1.configure(bg=t["btn_bg"], fg=t["btn_fg"])
-        self.btn_floor2.configure(bg=t["btn_bg"], fg=t["btn_fg"])
-        self.btn_floor3.configure(bg=t["btn_bg"], fg=t["btn_fg"])
+        # Control buttons
+        self.btn_report.configure(
+            bg="#F59E0B", fg="#000000",
+            highlightbackground="#D97706"
+        )
+        self.btn_admin.configure(
+            bg="#0F172A" if self.is_dark else "#E2E8F0",
+            fg="#00D2FF" if self.is_dark else "#0284C7",
+            highlightbackground="#00D2FF" if self.is_dark else "#0284C7"
+        )
+        if hasattr(self, "menu_btn"):
+            self.menu_btn.configure(
+                bg="#000000" if self.is_dark else "#FFFFFF",
+                fg="#FFFFFF" if self.is_dark else "#000000",
+                highlightbackground="#00D2FF" if self.is_dark else "#0284C7"
+            )
+        if hasattr(self, "system_menu"):
+            menu_bg = "#0A0F1D" if self.is_dark else "#FFFFFF"
+            menu_fg = "#FFFFFF" if self.is_dark else "#000000"
+            self.system_menu.configure(
+                bg=menu_bg, fg=menu_fg,
+                activebackground="#00A2FF" if self.is_dark else "#0284C7",
+                activeforeground="#000000" if self.is_dark else "#FFFFFF"
+            )
+            is_fs = self.root.attributes("-fullscreen")
+            self.system_menu.entryconfigure(0, label="☀️ Switch to Light Mode" if self.is_dark else "🌙 Switch to Dark Mode")
+            self.system_menu.entryconfigure(1, label="❐ Exit Fullscreen (F11)" if is_fs else "⛶ Enter Fullscreen (F11)")
+
         self.updateFloorSelection()
 
         if self.animator.isInRoomMenu and self.selectedRoom:
-            self.animator.drawRoomMenuOverlay(self.selectedRoom, backCallback=self.returnToCurrentFloor)
+            self.animator.drawRoomMenuOverlay(
+                self.selectedRoom,
+                backCallback=self.returnToCurrentFloor,
+                editCallback=lambda: self.openEditAuthentication(self.selectedRoom),
+                reportCallback=lambda r, ac=None: self.openReportDialog(r, ac),
+            )
 
         self.updateDashboard()
 
     def updateFloorSelection(self):
-        # Gives the active floor a clear visual state.
         t = self.get_current_theme()
         floor_buttons = {
             "Floor 1": self.btn_floor1,
             "Floor 2": self.btn_floor2,
             "Floor 3": self.btn_floor3,
-            "Floor 4" : self.btn_floor4 if hasattr(self, 'btn_floor4') else None
+            "Floor 4": self.btn_floor4 if hasattr(self, 'btn_floor4') else None
         }
-    #change floor thing
+
         for floor_name, button in floor_buttons.items():
+            if not button:
+                continue
             is_selected = floor_name == self.current_floor
             button.configure(
-                bg=t["accent"] if is_selected else t["btn_bg"],
-                fg="#FFFFFF" if is_selected else t["btn_fg"],
-                relief="sunken" if is_selected else "flat",
-                highlightthickness=1 if is_selected else 0,
-                highlightbackground=t["accent"] if is_selected else t["btn_bg"],
+                bg=t["active_tab_bg"] if is_selected else t["btn_bg"],
+                fg=t["active_tab_fg"] if is_selected else t["btn_fg"],
+                highlightbackground=t["accent"],
+                highlightthickness=1,
             )
-    # toggleables
+
     def toggle_theme(self):
         self.is_dark = not self.is_dark
         self.apply_theme()
@@ -563,11 +1100,14 @@ class ACStatFullScreenApp:
     def toggle_fullscreen(self):
         is_fs = not self.root.attributes("-fullscreen")
         self.root.attributes("-fullscreen", is_fs)
-        self.btn_fullscreen.config(text="🗗 Windowed" if is_fs else "🗖 Fullscreen")
+        if hasattr(self, "system_menu"):
+            self.system_menu.entryconfigure(1, label="❐ Exit Fullscreen (F11)" if is_fs else "⛶ Enter Fullscreen (F11)")
 
     def exit_fullscreen(self):
         self.root.attributes("-fullscreen", False)
-        self.btn_fullscreen.config(text="🗖 Fullscreen")
+        if hasattr(self, "system_menu"):
+            self.system_menu.entryconfigure(1, label="⛶ Enter Fullscreen (F11)")
+
 
 if __name__ == "__main__":
     root = tk.Tk()
