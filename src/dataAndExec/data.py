@@ -484,16 +484,29 @@ class RoomDataProvider:
                 raise KeyError(f"Room not found: {roomName}")
 
     def getFloorsData(self, floorLayout):
+        """
+        Polymorphically instantiates the correct FacilityRoom subclass for each room.
+        - ConstructionSector  → rooms named "coming soon"
+        - OfficeRoom          → rooms where hasStats is False (staff/admin areas)
+        - Classroom           → all interactive student classrooms
+        This is where Polymorphism is exercised: callers iterate a uniform list of
+        FacilityRoom objects and call .is_interactive() / .get_theme_colors() /
+        .get_status_summary() without knowing the concrete subtype.
+        """
         floorsData = {}
         acNumber = 1
 
         for floorName, rooms in floorLayout.items():
             floorsData[floorName] = []
             for roomLayout in rooms:
-                room = dict(roomLayout)
-                stored = self.getRoom(room["name"])
+                name = roomLayout["name"]
+                coords = roomLayout["coords"]
+
+                # Merge stored DB values on top of layout defaults
+                kwargs = {}
+                stored = self.getRoom(name)
                 if stored:
-                    room.update({
+                    kwargs.update({
                         "temp": stored["temperature"],
                         "status": stored["status"],
                         "acPower": stored["acPower"],
@@ -503,13 +516,24 @@ class RoomDataProvider:
                         "remoteBrand": stored["remoteBrand"],
                         "hasStats": bool(stored["hasStats"]),
                     })
-                room.update({
+
+                # Extra computed fields
+                kwargs.update({
                     "acId": f"AC-{acNumber:02d}",
                     "acIds": [f"AC-{acNumber:02d}A", f"AC-{acNumber:02d}B"],
-                    "acModel": room.get("merkAc") or "Unknown",
-                    "acCondition": "Needs service" if room.get("status") == "Warning" else "Good",
+                    "acModel": kwargs.get("merkAc") or "Unknown",
+                    "acCondition": "Needs service" if kwargs.get("status") == "Warning" else "Good",
                 })
-                floorsData[floorName].append(room)
+
+                # --- Polymorphic subclass selection ---
+                if name.lower() == "coming soon":
+                    room_obj = ConstructionSector(name, coords, **kwargs)
+                elif not kwargs.get("hasStats", True):
+                    room_obj = OfficeRoom(name, coords, **kwargs)
+                else:
+                    room_obj = Classroom(name, coords, **kwargs)
+
+                floorsData[floorName].append(room_obj)
                 acNumber += 1
 
         return floorsData

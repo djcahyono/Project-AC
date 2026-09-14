@@ -1,10 +1,34 @@
+import sys
 import tkinter as tk
+from pathlib import Path
 
-class RoomDesigner:
-    """Renders the interactive room interior and AC telemetry modal in Persona 3 Reload style."""
+src_dir = Path(__file__).resolve().parents[1]
+for candidate in (str(src_dir), str(src_dir.parent)):
+    if candidate not in sys.path:
+        sys.path.insert(0, candidate)
+
+try:
+    from gui.baseRenderer import BaseRenderer
+except ModuleNotFoundError:
+    from src.gui.baseRenderer import BaseRenderer
+
+
+class RoomDesigner(BaseRenderer):
+    """
+    Renders the interactive room interior and AC telemetry modal.
+    Demonstrates:
+    - Inheritance: extends BaseRenderer, inheriting canvas management and clear().
+    - Polymorphism: overrides render() with a room-interior-specific implementation.
+    """
 
     def __init__(self, canvas):
-        self.canvas = canvas
+        super().__init__(canvas)  # Calls BaseRenderer.__init__ — Inheritance
+
+    def render(self, roomData=None, onAcClick=None, onBackClick=None, onEditClick=None, onReportClick=None):
+        """Polymorphic render() — draws the full room interior view."""
+        if roomData:
+            self.drawRoomView(roomData, onAcClick, onBackClick, onEditClick, onReportClick)
+
 
     def drawRoomView(self, roomData, onAcClick, onBackClick, onEditClick=None, onReportClick=None):
         self.canvas.delete("all")

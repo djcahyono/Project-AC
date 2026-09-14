@@ -1,40 +1,97 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
+from abc import ABC, abstractmethod
 
 
-class AdminPanelUI:
-    """Persona 3 Reload styled Admin Panel for viewing and managing school AC facility incident reports."""
+# =====================================================================
+# OOP Principle: Abstraction — Abstract Base for Facility Panels
+# =====================================================================
+class BaseFacilityPanel(ABC):
+    """
+    Abstract Base Class for all top-level facility management panels.
+    Demonstrates:
+    - Abstraction: Enforces a uniform setup_ui() / load_data() contract.
+    - Encapsulation: Theme palette stored as instance attributes, not globals.
+    - Template Method Pattern: __init__ calls setup_ui() then load_data() in order.
+    - Inheritance & Polymorphism: AdminPanelUI inherits this and overrides both methods.
+    """
 
-    def __init__(self, parent_root, data_provider, on_close_callback=None):
+    # Persona 3 Reload Dark Hour Palette — shared by all subclasses (Class Variable)
+    DEFAULT_THEME = {
+        "bg":           "#070A12",
+        "card_bg":      "#0D1322",
+        "header_bg":    "#00A2FF",
+        "text_primary": "#FFFFFF",
+        "text_muted":   "#38BDF8",
+        "accent_cyan":  "#00D2FF",
+        "danger_red":   "#FF2A42",
+        "warning_amber":"#F59E0B",
+        "success_cyan": "#00FFCC",
+    }
+
+    def __init__(self, parent_root, data_provider, title, geometry, on_close_callback=None):
         self.root = parent_root
         self.data_provider = data_provider
         self.on_close_callback = on_close_callback
 
+        # Encapsulated theme properties from class-level palette
+        theme = self.DEFAULT_THEME
+        self.bg           = theme["bg"]
+        self.card_bg      = theme["card_bg"]
+        self.header_bg    = theme["header_bg"]
+        self.text_primary = theme["text_primary"]
+        self.text_muted   = theme["text_muted"]
+        self.accent_cyan  = theme["accent_cyan"]
+        self.danger_red   = theme["danger_red"]
+        self.warning_amber= theme["warning_amber"]
+        self.success_cyan = theme["success_cyan"]
+
         self.window = tk.Toplevel(self.root)
-        self.window.title("SEES CENTRAL COMMAND // ADMIN FACILITY PANEL")
-        self.window.geometry("1100x680")
+        self.window.title(title)
+        self.window.geometry(geometry)
         self.window.minsize(900, 560)
         self.window.transient(self.root)
         self.window.grab_set()
-
-        # Dark theme palette matching P3 Reload
-        self.bg = "#070A12"
-        self.card_bg = "#0D1322"
-        self.header_bg = "#00A2FF"
-        self.text_primary = "#FFFFFF"
-        self.text_muted = "#38BDF8"
-        self.accent_cyan = "#00D2FF"
-        self.danger_red = "#FF2A42"
-        self.warning_amber = "#F59E0B"
-        self.success_cyan = "#00FFCC"
-
         self.window.configure(bg=self.bg)
 
+        # Template Method: subclass must implement these two lifecycle steps
+        self.setup_ui()
+        self.load_data()
+
+    @abstractmethod
+    def setup_ui(self):
+        """Polymorphic UI layout — each panel builds its own interface."""
+        pass
+
+    @abstractmethod
+    def load_data(self):
+        """Polymorphic data loading — each panel fetches its own dataset."""
+        pass
+
+
+class AdminPanelUI(BaseFacilityPanel):
+    """
+    Persona 3 Reload styled Admin Panel for managing school AC facility incident reports.
+    Demonstrates Inheritance: extends BaseFacilityPanel.
+    Demonstrates Polymorphism: overrides setup_ui() and load_data() with admin-specific logic.
+    """
+
+    def __init__(self, parent_root, data_provider, on_close_callback=None):
         self.status_filter_var = tk.StringVar(value="ALL")
         self.room_filter_var = tk.StringVar(value="ALL")
+        # Calls BaseFacilityPanel.__init__ → setup_ui() → load_data() via Template Method
+        super().__init__(
+            parent_root, data_provider,
+            title="SEES CENTRAL COMMAND // ADMIN FACILITY PANEL",
+            geometry="1100x680",
+            on_close_callback=on_close_callback
+        )
 
-        self.setup_ui()
+    def load_data(self):
+        """Polymorphic implementation: loads incident reports from the database."""
         self.load_reports()
+
+
 
     def setup_ui(self):
         # 1. Top Header Banner

@@ -354,7 +354,7 @@ class ACStatFullScreenApp:
         self.dashboard_title.pack(anchor="w")
 
         self.dashboard_sub = tk.Label(
-            self.dash_header_frame, text="遊びは終わりだ // 世界の終わり",
+            self.dash_header_frame, text="memento mori  •  memento vivere",
             font=("Segoe UI", 8, "italic")
         )
         self.dashboard_sub.pack(anchor="w", pady=(1, 0))
@@ -803,8 +803,6 @@ class ACStatFullScreenApp:
                 canvas_w / 2, 100, text="// MARSUDIRINI LEVEL 4 //\nACCESS RESTRICTED",
                 fill=theme["muted"], font=("Segoe UI", 12, "bold"), justify="center"
             )
-            if "character" in self.p3_images:
-                self.dashboard_canvas.create_image(canvas_w / 2, 240, image=self.p3_images["character"])
             return
 
         # Metrics calculation: Focus on classroom / AC-equipped rooms
@@ -834,10 +832,10 @@ class ACStatFullScreenApp:
         avg_temp_val = (sum(temperatures) / len(temperatures)) if temperatures else 0
         avg_temp_str = f"{avg_temp_val:.1f}°C" if temperatures else "--°C"
 
-        # 1. Donut Chart (P3 Status Arc Gauge with 360 full circle fix!)
+        # 1. Donut Chart (P3 Status Arc Gauge — enlarged, no image, more canvas space)
         center_x = canvas_w / 2
-        center_y = 65
-        radius = 48
+        center_y = 90
+        radius = 72
         total = sum(status_counts.values())
 
         color_map = {
@@ -870,35 +868,35 @@ class ACStatFullScreenApp:
                     )
                     start_angle -= extent
 
-            # Inner cutout circle for donut
+            # Inner cutout circle for donut (larger hole to match bigger chart)
             self.dashboard_canvas.create_oval(
-                center_x - 26, center_y - 26,
-                center_x + 26, center_y + 26,
+                center_x - 38, center_y - 38,
+                center_x + 38, center_y + 38,
                 fill=theme["card_bg"], outline=theme["card_bg"],
             )
 
             on_count = status_counts["ON"]
             if on_count == total and total > 0:
                 self.dashboard_canvas.create_text(
-                    center_x, center_y - 5, text="100%",
-                    fill="#00FFCC", font=("Segoe UI", 12, "bold"),
+                    center_x, center_y - 8, text="100%",
+                    fill="#00FFCC", font=("Segoe UI", 15, "bold"),
                 )
                 self.dashboard_canvas.create_text(
-                    center_x, center_y + 9, text="ALL ON",
-                    fill="#00FFCC", font=("Segoe UI", 7, "bold"),
+                    center_x, center_y + 12, text="ALL ON",
+                    fill="#00FFCC", font=("Segoe UI", 9, "bold"),
                 )
             else:
                 self.dashboard_canvas.create_text(
-                    center_x, center_y - 4, text=f"{on_count}/{total}",
-                    fill=theme["text"], font=("Segoe UI", 11, "bold"),
+                    center_x, center_y - 7, text=f"{on_count}/{total}",
+                    fill=theme["text"], font=("Segoe UI", 14, "bold"),
                 )
                 self.dashboard_canvas.create_text(
-                    center_x, center_y + 10, text="ACTIVE",
-                    fill=theme["muted"], font=("Segoe UI", 6, "bold"),
+                    center_x, center_y + 12, text="ACTIVE",
+                    fill=theme["muted"], font=("Segoe UI", 8, "bold"),
                 )
 
         # Donut Legend
-        legend_y = 126
+        legend_y = 178
         legend_items = [
             ("ON", status_counts["ON"], "#00D2FF"),
             ("OFF", status_counts["OFF"], "#FF2A42"),
@@ -946,22 +944,17 @@ class ACStatFullScreenApp:
 
         # Metric 1: Average Temperature (Scale 18°C - 30°C)
         temp_ratio = max(0.0, min(1.0, (avg_temp_val - 18) / 12)) if avg_temp_val else 0.0
-        draw_progress_meter(148, "AVG TEMPERATURE", avg_temp_str, temp_ratio, "#00D2FF")
+        draw_progress_meter(200, "AVG TEMPERATURE", avg_temp_str, temp_ratio, "#00D2FF")
 
         # Metric 2: Active AC Units Ratio
         active_ratio = (status_counts["ON"] / total) if total else 0.0
-        draw_progress_meter(178, "ACTIVE POWER RATIO", f"{status_counts['ON']} / {total}", active_ratio, "#38BDF8")
+        draw_progress_meter(230, "ACTIVE POWER RATIO", f"{status_counts['ON']} / {total}", active_ratio, "#38BDF8")
 
         # Metric 3: Total AC units
-        draw_progress_meter(208, "TOTAL AC UNITS", f"{ac_count} UNITS", min(1.0, ac_count / 24), "#00FFCC")
+        draw_progress_meter(260, "TOTAL AC UNITS", f"{ac_count} UNITS", min(1.0, ac_count / 24), "#00FFCC")
 
-        # 3. Persona 3 Reload Character Art Card
-        art_y = 296
-        if "character" in self.p3_images:
-            self.dashboard_canvas.create_image(center_x, art_y, image=self.p3_images["character"])
-
-        # 4. Telemetry Lore Card (Bottom section from reference image)
-        card_y = 390
+        # 3. Telemetry Lore Card (Bottom section)
+        card_y = 300
         self.dashboard_canvas.create_text(
             center_x, card_y,
             text="✦  001   013   717   P3R   100   651   111   FES  ✦",

@@ -8,15 +8,20 @@ for candidate in (str(src_dir), str(src_dir.parent)):
         sys.path.insert(0, candidate)
 
 try:
+    from gui.baseRenderer import BaseRenderer
+except ModuleNotFoundError:
+    from src.gui.baseRenderer import BaseRenderer
+
+try:
     from gui.roomDesign import RoomDesigner
 except ModuleNotFoundError:
     from src.gui.roomDesign import RoomDesigner
 
-class CanvasAnimationManager:
+class CanvasAnimationManager(BaseRenderer):
     """Handles canvas rendering, room hovering, zoom-to-menu transitions, and slide animations."""
 
     def __init__(self, canvas, root, themeGetter):
-        self.canvas = canvas
+        super().__init__(canvas)  # Calls BaseRenderer.__init__ — Inheritance in action
         self.root = root
         self.getTheme = themeGetter
 
@@ -24,6 +29,14 @@ class CanvasAnimationManager:
         self.activeRoom = None
         self.isInRoomMenu = False
         self.roomDesigner = RoomDesigner(canvas)
+
+    def render(self, floorData=None, floorName="", hoverCallback=None, clickCallback=None):
+        """
+        Polymorphic render() implementation (required by BaseRenderer).
+        Delegates to drawFloorItems when floor data is provided.
+        """
+        if floorData and hoverCallback and clickCallback:
+            self.drawFloorItems(floorData, floorName, hoverCallback, clickCallback)
 
     def drawFloorItems(self, floorData, floorName, hoverCallback, clickCallback, offsetX=0):
         # Draw background tactical grid accents if on main map
@@ -33,6 +46,7 @@ class CanvasAnimationManager:
         for room in floorData:
             name = room["name"]
             x1, y1, x2, y2 = room["coords"]
+            # Polymorphic call: FacilityRoom subclasses return their own colors
             fillColor, outlineColor, accentColor = self.getRoomThemeColors(room)
 
             rectTag = f"{name}Rect"
@@ -46,7 +60,7 @@ class CanvasAnimationManager:
                 tags=(roomTag, rectTag, "floorItems")
             )
 
-            # Special single large banner for "coming soon"
+            # Polymorphic dispatch: ConstructionSector renders its own banner
             if name.lower() == "coming soon":
                 cx = (x1 + x2) / 2 + offsetX
                 cy = (y1 + y2) / 2
@@ -64,9 +78,10 @@ class CanvasAnimationManager:
                 )
                 continue
 
-            # Non-classroom facility tags (R. Data, R. TU, Ruang Guru, etc.)
-            hasStats = room.get("hasStats", True)
-            if not hasStats:
+            # Polymorphic call: room.is_interactive() decides rendering path
+            # OfficeRoom returns False → renders as staff facility label
+            # Classroom returns True  → renders full telemetry HUD
+            if not room.is_interactive():
                 cx = (x1 + x2) / 2 + offsetX
                 cy = (y1 + y2) / 2
                 self.canvas.create_text(
@@ -148,25 +163,30 @@ class CanvasAnimationManager:
 
     @staticmethod
     def getRoomThemeColors(room):
-        """Returns (fillColor, outlineColor, accentColor) in Persona 3 Dark Hour palette."""
+        """
+        Returns (fillColor, outlineColor, accentColor) in Persona 3 Dark Hour palette.
+        Demonstrates Polymorphism: if room is a FacilityRoom subclass, delegates to
+        room.get_theme_colors() so each subclass controls its own appearance.
+        Falls back to dict-based logic for compatibility.
+        """
+        # Polymorphic delegation — FacilityRoom subclasses override get_theme_colors()
+        if hasattr(room, "get_theme_colors"):
+            return room.get_theme_colors()
+
+        # Fallback for plain dicts (backwards compatibility)
         hasStats = room.get("hasStats", True)
         if not hasStats:
             return ("#0B111D", "#1E293B", "#64748B")
-
         power = str(room.get("acPower", "ON")).upper()
         if power == "OFF":
             return ("#131B29", "#334155", "#64748B")
-
         temp = room.get("temp")
         if temp is None:
             return ("#0E1726", "#1E293B", "#94A3B8")
         if temp >= 25:
-            # Danger / Hot -> Persona Crimson
             return ("#2D0B14", "#FF2A42", "#FF4D6D")
         if temp >= 23:
-            # Moderate -> Warm Amber
             return ("#221A08", "#F59E0B", "#FBBF24")
-        # Cool / Optimal -> Electric Cyan
         return ("#061E34", "#00A2FF", "#00D2FF")
 
     def hoverZoom(self, roomData, entering):
