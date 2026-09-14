@@ -18,7 +18,7 @@ except ModuleNotFoundError:
     from src.gui.roomDesign import RoomDesigner
 
 class CanvasAnimationManager(BaseRenderer):
-    """Handles canvas rendering, room hovering, zoom-to-menu transitions, and slide animations."""
+    # Handles map rendering, hover effects, zoom transitions, and slide animations.
 
     def __init__(self, canvas, root, themeGetter):
         super().__init__(canvas)  # Calls BaseRenderer.__init__ — Inheritance in action
@@ -31,10 +31,8 @@ class CanvasAnimationManager(BaseRenderer):
         self.roomDesigner = RoomDesigner(canvas)
 
     def render(self, floorData=None, floorName="", hoverCallback=None, clickCallback=None):
-        """
-        Polymorphic render() implementation (required by BaseRenderer).
-        Delegates to drawFloorItems when floor data is provided.
-        """
+        # Polymorphic render implementation required by BaseRenderer.
+        # Delegate to drawFloorItems when floor data is provided.
         if floorData and hoverCallback and clickCallback:
             self.drawFloorItems(floorData, floorName, hoverCallback, clickCallback)
 
@@ -163,12 +161,8 @@ class CanvasAnimationManager(BaseRenderer):
 
     @staticmethod
     def getRoomThemeColors(room):
-        """
-        Returns (fillColor, outlineColor, accentColor) in Persona 3 Dark Hour palette.
-        Demonstrates Polymorphism: if room is a FacilityRoom subclass, delegates to
-        room.get_theme_colors() so each subclass controls its own appearance.
-        Falls back to dict-based logic for compatibility.
-        """
+        # Return fill, outline, and accent colors. FacilityRoom subclasses
+        # provide their own colors; plain dictionaries use the compatibility path.
         # Polymorphic delegation — FacilityRoom subclasses override get_theme_colors()
         if hasattr(room, "get_theme_colors"):
             return room.get_theme_colors()
@@ -190,7 +184,7 @@ class CanvasAnimationManager(BaseRenderer):
         return ("#061E34", "#00A2FF", "#00D2FF")
 
     def hoverZoom(self, roomData, entering):
-        """Persona 3 targeting reticle and highlight expansion on hover."""
+        # Expand the room and show a targeting highlight on hover.
         if self.isAnimating or self.isInRoomMenu:
             return
 
@@ -212,7 +206,7 @@ class CanvasAnimationManager(BaseRenderer):
             self.canvas.config(cursor="")
 
     def zoomIntoRoom(self, roomData, onCompleteCallback, step=0, totalSteps=16):
-        """Animates canvas scaling centered on the clicked room object."""
+        # Animate canvas scaling around the clicked room.
         if step == 0:
             if self.isAnimating:
                 return

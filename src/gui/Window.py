@@ -158,7 +158,7 @@ class ACStatFullScreenApp:
         assets_dir = project_root / "assets"
         self.p3_images = {}
         file_map = {
-            "badge": "p3_orpheus_badge_small.png",
+            "badge": "Marsudirini_Logo.png",
             "thumb": "p3_classroom_thumb_small.png",
             "character": "p3_character_art_dash.png",
             "thanatos": "p3_thanatos_small.png",
@@ -169,9 +169,15 @@ class ACStatFullScreenApp:
             if img_path.exists():
                 try:
                     if HAS_PIL:
-                        self.p3_images[key] = ImageTk.PhotoImage(Image.open(img_path))
+                        image = Image.open(img_path)
+                        if key == "badge":
+                            image.thumbnail((58, 58), Image.Resampling.LANCZOS)
+                        self.p3_images[key] = ImageTk.PhotoImage(image)
                     else:
-                        self.p3_images[key] = tk.PhotoImage(file=str(img_path))
+                        image = tk.PhotoImage(file=str(img_path))
+                        if key == "badge":
+                            image = image.subsample(max(1, image.width() // 58))
+                        self.p3_images[key] = image
                 except Exception as e:
                     print(f"Warning loading {filename}: {e}")
 
@@ -184,12 +190,12 @@ class ACStatFullScreenApp:
         self.top_bar.pack(fill="x", side="top")
         self.top_bar.pack_propagate(False)
 
-        # Left Header: Orpheus / Thanatos Badge & Title
+        # Left Header: Marsudirini logo and title
         self.left_box = tk.Frame(self.top_bar)
         self.left_box.pack(side="left", padx=14)
 
         if "badge" in self.p3_images:
-            self.badge_label = tk.Label(self.left_box, image=self.p3_images["badge"], bd=1, relief="solid")
+            self.badge_label = tk.Label(self.left_box, image=self.p3_images["badge"], bd=0, relief="flat", highlightthickness=0)
             self.badge_label.pack(side="left", padx=(0, 10))
 
         self.title_box = tk.Frame(self.left_box)
@@ -431,7 +437,7 @@ class ACStatFullScreenApp:
         )
 
     def openReportDialog(self, roomData=None, defaultAc=None):
-        """Opens a Persona 3 Reload styled Incident Reporting modal."""
+        # Open the incident reporting modal.
         theme = self.get_current_theme()
         dialog = tk.Toplevel(self.root)
         dialog.title("SEES INCIDENT REPORT // MARSUDIRINI AC")
@@ -539,7 +545,7 @@ class ACStatFullScreenApp:
         ).pack(side="left")
 
     def openAdminAuthentication(self):
-        """Authenticates admin and launches AdminPanelUI."""
+        # Authenticate the administrator and launch AdminPanelUI.
         theme = self.get_current_theme()
         dialog = tk.Toplevel(self.root)
         dialog.title("ADMIN AUTHENTICATION // SEES CENTRAL")

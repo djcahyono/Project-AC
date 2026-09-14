@@ -14,18 +14,13 @@ except ModuleNotFoundError:
 
 
 class RoomDesigner(BaseRenderer):
-    """
-    Renders the interactive room interior and AC telemetry modal.
-    Demonstrates:
-    - Inheritance: extends BaseRenderer, inheriting canvas management and clear().
-    - Polymorphism: overrides render() with a room-interior-specific implementation.
-    """
+    # Renders the interactive room interior and AC detail modal.
 
     def __init__(self, canvas):
         super().__init__(canvas)  # Calls BaseRenderer.__init__ — Inheritance
 
     def render(self, roomData=None, onAcClick=None, onBackClick=None, onEditClick=None, onReportClick=None):
-        """Polymorphic render() — draws the full room interior view."""
+        # Polymorphic render method for the room interior view.
         if roomData:
             self.drawRoomView(roomData, onAcClick, onBackClick, onEditClick, onReportClick)
 
@@ -282,7 +277,7 @@ class RoomDesigner(BaseRenderer):
         )
 
     def showAcInfo(self, roomData, acIndex=0, onReportClick=None):
-        """Displays a high-contrast Persona 3 battle-result / persona status modal for the selected AC."""
+        # Display the selected AC's status and reporting modal.
         self.canvas.delete("ac_focus")
 
         canvasWidth = self.canvas.winfo_width() or 950

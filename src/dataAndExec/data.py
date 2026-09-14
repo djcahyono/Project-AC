@@ -4,31 +4,23 @@ import hmac
 from pathlib import Path
 import sqlite3
 
-# =====================================================================
-# OOP Principle: Abstraction & Interface Inheritance
-# =====================================================================
 class FacilityEntity(ABC):
-    """Abstract Base Class representing any facility element in Marsudirini school."""
+    # Abstract base class representing any facility element in Marsudirini school.
 
     @abstractmethod
     def get_status_summary(self) -> str:
-        """Polymorphic summary text describing entity status."""
+        # Polymorphic summary text describing entity status.
         pass
 
     @abstractmethod
     def is_interactive(self) -> bool:
-        """Determines if the entity responds to tactical click/zoom interactions."""
+        # Determines if the entity responds to click/zoom interactions.
         pass
 
 
 class FacilityRoom(dict, FacilityEntity):
-    """
-    Base OOP Room Class.
-    Demonstrates:
-    - Multiple Inheritance (inherits dict for seamless mapping compatibility + FacilityEntity)
-    - Encapsulation (managed properties & internal validation)
-    - Polymorphism (methods overridden in derived subclasses)
-    """
+    # Base room class.
+    # Demonstrates multiple inheritance, encapsulation, and polymorphism.
 
     def __init__(self, name, coords, **kwargs):
         super().__init__(name=name, coords=coords, **kwargs)
@@ -37,22 +29,22 @@ class FacilityRoom(dict, FacilityEntity):
 
     @property
     def name(self):
-        """Encapsulated name getter."""
+        # Encapsulated name getter.
         return self.get("name", self._name)
 
     @property
     def coords(self):
-        """Encapsulated coordinates getter."""
+        # Encapsulated coordinates getter.
         return self.get("coords", self._coords)
 
     @property
     def temperature(self):
-        """Encapsulated temperature getter."""
+        # Encapsulated temperature getter.
         return self.get("temp")
 
     @property
     def ac_power(self):
-        """Encapsulated power state getter."""
+        # Encapsulated power state getter.
         return self.get("acPower", "ON")
 
     def is_interactive(self) -> bool:
@@ -62,15 +54,12 @@ class FacilityRoom(dict, FacilityEntity):
         return f"ROOM: {self.name} | POWER: {self.ac_power}"
 
     def get_theme_colors(self):
-        """Polymorphic color calculation returning (fill, outline, accent)."""
+        # Polymorphic color calculation returning fill, outline, and accent.
         return ("#0B111D", "#1E293B", "#64748B")
 
 
 class Classroom(FacilityRoom):
-    """
-    Subclass representing regular student classrooms equipped with AC.
-    Demonstrates Inheritance and Polymorphism.
-    """
+    # Student classroom equipped with AC.
 
     def is_interactive(self) -> bool:
         return True
@@ -80,7 +69,7 @@ class Classroom(FacilityRoom):
         return f"CLASSROOM {self.name} // TEMP: {t_str} // PWR: {self.ac_power}"
 
     def get_theme_colors(self):
-        """Polymorphic implementation based on real-time temperature and power state."""
+        # Choose colors from the current temperature and power state.
         power = str(self.ac_power).upper()
         if power == "OFF":
             return ("#131B29", "#334155", "#64748B")
@@ -99,10 +88,7 @@ class Classroom(FacilityRoom):
 
 
 class OfficeRoom(FacilityRoom):
-    """
-    Subclass representing administration / faculty rooms (Ruang Guru, TU, Kepsek).
-    Demonstrates Polymorphism: non-interactive and distinct stealth palette.
-    """
+    # Administration or faculty room. These rooms are non-interactive.
 
     def is_interactive(self) -> bool:
         return False
@@ -115,10 +101,7 @@ class OfficeRoom(FacilityRoom):
 
 
 class ConstructionSector(FacilityRoom):
-    """
-    Subclass representing sectors under construction (e.g. Floor 4).
-    Demonstrates Polymorphism: specialized banner messaging.
-    """
+    # Area under construction, such as Floor 4.
 
     def is_interactive(self) -> bool:
         return False
@@ -131,10 +114,7 @@ class ConstructionSector(FacilityRoom):
 
 
 class FacilityReportItem:
-    """
-    Encapsulates an incident report record.
-    Demonstrates Encapsulation with property getters and validation setters.
-    """
+    # Incident report record with validated status updates.
 
     def __init__(self, report_id, room_name, ac_id, issue_type, description, reporter_name="Anonymous", status="PENDING", created_at=None):
         self._id = report_id
@@ -179,7 +159,7 @@ class FacilityReportItem:
 # OOP Principle: Inheritance & Polymorphic Editors
 # =====================================================================
 class _RoomEditor(ABC):
-    """Abstract room editor interface."""
+    # Abstract room editor interface.
 
     def __init__(self, provider, roomName):
         self.provider = provider
@@ -187,19 +167,19 @@ class _RoomEditor(ABC):
 
     @abstractmethod
     def update(self, **values):
-        """Polymorphic update method."""
+        # Polymorphic update method.
         pass
 
 
 class _EditableRoomEditor(_RoomEditor):
-    """Concrete editor for classrooms allowing data mutation."""
+    # Concrete editor for classrooms allowing data mutation.
 
     def update(self, **values):
         self.provider.updateRoom(self.roomName, **values)
 
 
 class _ReadOnlyRoomEditor(_RoomEditor):
-    """Concrete editor for non-classroom facilities enforcing read-only access."""
+    # Concrete editor for non-classroom facilities enforcing read-only access.
 
     def update(self, **values):
         raise PermissionError(f"Room cannot be edited: {self.roomName}")
@@ -484,15 +464,10 @@ class RoomDataProvider:
                 raise KeyError(f"Room not found: {roomName}")
 
     def getFloorsData(self, floorLayout):
-        """
-        Polymorphically instantiates the correct FacilityRoom subclass for each room.
-        - ConstructionSector  → rooms named "coming soon"
-        - OfficeRoom          → rooms where hasStats is False (staff/admin areas)
-        - Classroom           → all interactive student classrooms
-        This is where Polymorphism is exercised: callers iterate a uniform list of
-        FacilityRoom objects and call .is_interactive() / .get_theme_colors() /
-        .get_status_summary() without knowing the concrete subtype.
-        """
+        # Instantiate the correct FacilityRoom subclass for each room:
+        # ConstructionSector for "coming soon", OfficeRoom for staff areas,
+        # and Classroom for interactive student classrooms. Callers can use
+        # the same interface without knowing the concrete subtype.
         floorsData = {}
         acNumber = 1
 

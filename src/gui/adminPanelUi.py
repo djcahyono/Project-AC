@@ -7,14 +7,8 @@ from abc import ABC, abstractmethod
 # OOP Principle: Abstraction — Abstract Base for Facility Panels
 # =====================================================================
 class BaseFacilityPanel(ABC):
-    """
-    Abstract Base Class for all top-level facility management panels.
-    Demonstrates:
-    - Abstraction: Enforces a uniform setup_ui() / load_data() contract.
-    - Encapsulation: Theme palette stored as instance attributes, not globals.
-    - Template Method Pattern: __init__ calls setup_ui() then load_data() in order.
-    - Inheritance & Polymorphism: AdminPanelUI inherits this and overrides both methods.
-    """
+    # Abstract base for facility management panels.
+    # It defines the setup_ui/load_data lifecycle and shared theme state.
 
     # Persona 3 Reload Dark Hour Palette — shared by all subclasses (Class Variable)
     DEFAULT_THEME = {
@@ -60,21 +54,17 @@ class BaseFacilityPanel(ABC):
 
     @abstractmethod
     def setup_ui(self):
-        """Polymorphic UI layout — each panel builds its own interface."""
+        # Each panel builds its own interface.
         pass
 
     @abstractmethod
     def load_data(self):
-        """Polymorphic data loading — each panel fetches its own dataset."""
+        # Each panel loads its own dataset.
         pass
 
 
 class AdminPanelUI(BaseFacilityPanel):
-    """
-    Persona 3 Reload styled Admin Panel for managing school AC facility incident reports.
-    Demonstrates Inheritance: extends BaseFacilityPanel.
-    Demonstrates Polymorphism: overrides setup_ui() and load_data() with admin-specific logic.
-    """
+    # Admin panel for managing AC facility incident reports.
 
     def __init__(self, parent_root, data_provider, on_close_callback=None):
         self.status_filter_var = tk.StringVar(value="ALL")
@@ -88,7 +78,7 @@ class AdminPanelUI(BaseFacilityPanel):
         )
 
     def load_data(self):
-        """Polymorphic implementation: loads incident reports from the database."""
+        # Load incident reports from the database.
         self.load_reports()
 
 
